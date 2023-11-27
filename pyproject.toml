@@ -1,0 +1,60 @@
+[tool.poetry]
+name = "voron_ci"
+version = "0.1.0"
+description = "A repository & docker container containing all necessary tools to accomplish CI tasks"
+authors = ["Florian Heilmann <Florian.Heilmann@gmx.net>"]
+license = "GPLv3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11"
+admesh = "^0.98.9"
+imagekitio = "^3.2.0"
+tweaker3 = {git = "https://github.com/ChristophSchranz/Tweaker-3.git"}
+pyyaml = "^6.0.1"
+
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.7.0"
+ruff = "^0.1.5"
+types-requests = "<2.31.0.7"
+types-pyyaml = "^6.0.12.12"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 160
+indent-width = 4
+
+# Assume Python 3.11
+target-version = "py311"
+
+[tool.ruff.lint]
+
+select = ["ALL" ]
+ignore = [
+    "D", # no docs
+    "ISC001", "COM812", # Might cause issues with formatter
+    "TRY300" # competes with RET505
+]
+fixable = ["ALL"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+[[tool.mypy.overrides]]
+module = [
+    "admesh.*",
+    "tweaker3.*"
+]
+ignore_missing_imports = true
+
+[tool.poetry.scripts]
+check-stl-corruption = "voron_ci.tools.stl_corruption_checker:main"
+check-stl-rotation = "voron_ci.tools.stl_rotation_checker:main"
+check-files = "voron_ci.tools.file_checker:main"
