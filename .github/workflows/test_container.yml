@@ -1,6 +1,6 @@
 name: Test Container
 run-name: ${{ github.actor }} is testing ${{ github.ref }} 🚀
-on: 
+on:
   workflow_dispatch:
 jobs:
     test_job:
@@ -22,6 +22,3 @@ jobs:
             GITHUB_TOKEN: ${{ github.token }}
         with:
             args: debug-container
-        
-
-    
