@@ -13,6 +13,8 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
+    outputs:
+      git_tag: ${{ steps.tag_version.outputs.new_tag }}
     steps:
       - uses: actions/checkout@v4
       - name: Bump version and push tag
@@ -46,10 +48,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags:
-            type=semver,pattern={{version}}
-          flavor: |
-            latest=auto
+          tags: |
+            type=raw,value=${{ needs.build.outputs.git_tag }}
+            type=raw,value=latest
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
