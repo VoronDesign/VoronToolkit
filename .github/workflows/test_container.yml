@@ -16,5 +16,12 @@ jobs:
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         with:
             args: ls -al /github/workspace
+      - name: Test extra env
+        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        env:
+            GITHUB_TOKEN: ${{ github.token }}
+        with:
+            args: debug-container
+        
 
     
