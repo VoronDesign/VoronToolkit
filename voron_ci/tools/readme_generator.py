@@ -36,7 +36,9 @@ class ReadmeGenerator:
     def run(self: Self) -> None:
         if self.verbosity:
             logger.setLevel("INFO")
-        logger.info("ReadmeGenerator starting up with readme_path: '%s', json_path: '%s', input_dir: '%s'", self.readme_path, self.json_path, self.input_dir.as_posix())
+        logger.info(
+            "ReadmeGenerator starting up with readme_path: '%s', json_path: '%s', input_dir: '%s'", self.readme_path, self.json_path, self.input_dir.as_posix()
+        )
         yaml_list = Path(self.input_dir).glob("**/.metadata.yml")
         mods: list[dict[str, Any]] = []
         for yml_file in sorted(yaml_list):

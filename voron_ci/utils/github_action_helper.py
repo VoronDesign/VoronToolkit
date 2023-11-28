@@ -73,7 +73,7 @@ class GithubActionHelper:
 
             # Iterate through the commits in reverse order
             for commit in repo.iter_commits(paths=file_or_directory, max_count=1):
-                return commit.authored_datetime.astimezone(datetime.timezone.utc).isoformat()
+                return commit.authored_datetime.astimezone(datetime.UTC).isoformat()
 
         except Exception:
             logger.exception("An error occurred while querying last_changed timestamp for '%s'", file_or_directory.as_posix())

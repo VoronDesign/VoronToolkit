@@ -46,7 +46,6 @@ class FileChecker:
 
         logger.info("Performing mod file check")
         for mod_folder in mod_folders:
-
             logger.info("Checking folder '%s'", mod_folder.relative_to(self.input_dir).as_posix())
             if not Path(mod_folder, ".metadata.yml").exists():
                 logger.warning("Mod '%s' is missing a metadata file!", mod_folder)
