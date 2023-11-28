@@ -9,7 +9,7 @@ COPY ./pyproject.toml ./poetry.lock ./README.md /app/
 
 RUN apt-get update && apt-get install -y build-essential libadmesh-dev
 
-RUN poetry install --only=main --no-root
+RUN poetry install --without dev --no-root
 
 COPY voron_ci/ /app/voron_ci
 
@@ -19,7 +19,7 @@ FROM python:3.11.6-slim as final
 
 WORKDIR /github/workspace
 ADD https://github.com/unlimitedbacon/stl-thumb/releases/download/v0.5.0/stl-thumb_0.5.0_amd64.deb /tmp
-RUN apt-get update && apt-get install -y --no-install-recommends git libadmesh-dev /tmp/stl-thumb_0.5.0_amd64.deb && rm -rf /var/cache/apt/archives /var/lib/apt/lists
+RUN apt-get update && apt-get install -y --no-install-recommends libadmesh-dev /tmp/stl-thumb_0.5.0_amd64.deb && rm -rf /var/cache/apt/archives /var/lib/apt/lists
 RUN rm /tmp/stl-thumb_0.5.0_amd64.deb
 
 COPY --from=builder /app /app
