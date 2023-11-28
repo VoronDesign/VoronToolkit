@@ -50,7 +50,8 @@ line-ending = "lf"
 [[tool.mypy.overrides]]
 module = [
     "admesh.*",
-    "tweaker3.*"
+    "tweaker3.*",
+    "imagekitio.*",
 ]
 ignore_missing_imports = true
 
@@ -58,3 +59,4 @@ ignore_missing_imports = true
 check-stl-corruption = "voron_ci.tools.stl_corruption_checker:main"
 check-stl-rotation = "voron_ci.tools.stl_rotation_checker:main"
 check-files = "voron_ci.tools.file_checker:main"
+upload-images = "voron_ci.tools.imagekit_uploader:main"
