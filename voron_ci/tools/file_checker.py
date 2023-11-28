@@ -21,9 +21,9 @@ STEP_SUMMARY_PREAMBLE = """
 
 
 class FileErrors(StrEnum):
-    file_outside_mod_folder = "The file '%s' is located outside the expected folder structure of `printer_mods/user/mod`"
-    mod_missing_metadata = "The mod '%s' does not have a metadata.yml file"
-    file_from_metadata_missing = "The file '%s' is listed in the metadata.yml file but does not exist"
+    file_outside_mod_folder = "The file '{}' is located outside the expected folder structure of `printer_mods/user/mod`"
+    mod_missing_metadata = "The mod '{}' does not have a metadata.yml file"
+    file_from_metadata_missing = "The file '{}' is listed in the metadata.yml file but does not exist"
 
 
 IGNORE_FILES = ["README.md", "mods.json"]
