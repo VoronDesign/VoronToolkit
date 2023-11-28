@@ -36,30 +36,33 @@ class ReadmeGenerator:
     def run(self: Self) -> None:
         if self.verbosity:
             logger.setLevel("INFO")
+        logger.info("ReadmeGenerator starting up with readme_path: '%s', json_path: '%s', input_dir: '%s'", self.readme_path, self.json_path, self.input_dir.as_posix())
         yaml_list = Path(self.input_dir).glob("**/.metadata.yml")
         mods: list[dict[str, Any]] = []
         for yml_file in sorted(yaml_list):
+            logger.info("Parsing '%s'", yml_file.relative_to(self.input_dir).parent.as_posix())
             with Path(yml_file).open("r") as f:
                 content = yaml.safe_load(f)
                 mods.append(
                     {
                         "path": yml_file.relative_to(self.input_dir).parent.as_posix(),
-                        "title": textwrap.shorten(content["title"], width=35, placeholder="..."),
+                        "title": content["title"],
                         "creator": yml_file.relative_to(self.input_dir).parts[0],
-                        "description": textwrap.shorten(content["description"], width=70, placeholder="..."),
+                        "description": content["description"],
                         "printer_compatibility": f'{", ".join(sorted(content["printer_compatibility"]))}',
-                        "last_changed": GithubActionHelper.last_commit_timestamp(file_or_directory=yml_file.relative_to(self.input_dir).parent),
+                        "last_changed": GithubActionHelper.last_commit_timestamp(file_or_directory=yml_file.parent),
                     }
                 )
 
         readme_rows: list[tuple[str, ...]] = []
         prev_username: str = ""
+        logger.info("Generating rows for %d mods", len(mods))
         for mod in mods:
             readme_rows.append(
                 (
                     mod["creator"] if mod["creator"] != prev_username else "",
-                    f'[{mod["title"]}]({mod["path"]})',
-                    mod["description"],
+                    f'[{textwrap.shorten(mod["title"], width=35, placeholder="...")}]({mod["path"]})',
+                    textwrap.shorten(mod["description"], width=70, placeholder="..."),
                     mod["printer_compatibility"],
                     mod["last_changed"],
                 )
@@ -71,10 +74,12 @@ class ReadmeGenerator:
         )
 
         if self.json_path:
+            logger.info("Writing json file to '%s'", self.json_path)
             with Path(self.json_path).open("w", encoding="utf-8") as f:
                 json.dump(mods, f, indent=4)
 
         if self.readme_path:
+            logger.info("Writing README file to '%s'", self.readme_path)
             with Path(self.readme_path).open("w", encoding="utf-8") as f:
                 f.write(
                     GithubActionHelper.create_markdown_table(
@@ -99,7 +104,7 @@ def main() -> None:
     parser.add_argument(
         "-r",
         "--readme_path",
-        required=True,
+        required=False,
         action="store",
         type=str,
         help="Readme output path (leave empty to not generate a Readme file)",
@@ -108,7 +113,7 @@ def main() -> None:
     parser.add_argument(
         "-j",
         "--json_path",
-        required=True,
+        required=False,
         action="store",
         type=str,
         help="Json output path (leave empty to not generate a json file)",
@@ -117,7 +122,7 @@ def main() -> None:
     parser.add_argument(
         "-v",
         "--verbose",
-        required=True,
+        required=False,
         action="store_true",
         help="Print debug output to stdout",
         default=False,

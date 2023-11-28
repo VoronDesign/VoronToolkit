@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os
 import zipfile
@@ -24,7 +25,7 @@ class GithubActionHelper:
 
     @classmethod
     def create_markdown_table_rows(cls: type[Self], rows: list[tuple[str, ...]]) -> str:
-        return "\n".join(["| " + " | ".join(row_elements) + " |\n" for row_elements in rows])
+        return "\n".join(["| " + " | ".join(row_elements) + " |" for row_elements in rows])
 
     @classmethod
     def create_markdown_table(cls: type[Self], preamble: str, columns: list[str], rows: list[tuple[str, ...]]) -> str:
@@ -72,7 +73,7 @@ class GithubActionHelper:
 
             # Iterate through the commits in reverse order
             for commit in repo.iter_commits(paths=file_or_directory, max_count=1):
-                return commit.authored_datetime.isoformat()
+                return commit.authored_datetime.astimezone(datetime.timezone.utc).isoformat()
 
         except Exception:
             logger.exception("An error occurred while querying last_changed timestamp for '%s'", file_or_directory.as_posix())

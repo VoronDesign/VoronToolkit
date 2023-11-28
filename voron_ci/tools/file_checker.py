@@ -44,7 +44,10 @@ class FileChecker:
     def _check_mods(self: Self, input_dir: Path) -> None:
         mod_folders = [folder for folder in input_dir.glob("*/*") if folder.is_dir() and folder.relative_to(input_dir).as_posix() not in IGNORE_FILES]
 
+        logger.info("Performing mod file check")
         for mod_folder in mod_folders:
+
+            logger.info("Checking folder '%s'", mod_folder.relative_to(self.input_dir).as_posix())
             if not Path(mod_folder, ".metadata.yml").exists():
                 logger.warning("Mod '%s' is missing a metadata file!", mod_folder)
                 self.errors[mod_folder] = FileErrors.mod_missing_metadata.value.format(mod_folder)
@@ -64,8 +67,8 @@ class FileChecker:
                         self.return_status = ReturnStatus.FAILURE
 
     def _check_shallow_files(self: Self, input_dir: Path) -> None:
-        files_folders = FileHelper.get_folders_at_depth(input_dir=input_dir, depth=MOD_DEPTH, ignore=IGNORE_FILES)
-
+        logger.info("Performing shallow file check")
+        files_folders = FileHelper.get_shallow_folders(input_dir=input_dir, max_depth=MOD_DEPTH - 1, ignore=IGNORE_FILES)
         for file_folder in files_folders:
             logger.warning("File '%s' outside mod folder structure!", file_folder)
             self.errors[file_folder] = FileErrors.file_outside_mod_folder.value.format(file_folder)

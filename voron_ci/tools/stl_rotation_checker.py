@@ -105,19 +105,19 @@ class STLRotationChecker:
         self.file_handler.write_mesh(objects=stl, info={0: {"matrix": opts.matrix, "tweaker_stats": opts}}, outputfile=output_path.as_posix())
 
     def _check_stl(self: Self, stl_file_path: Path) -> ReturnStatus:
-        logger.info("Checking '%s'", stl_file_path.as_posix())
+        logger.info("Checking '%s'", stl_file_path.relative_to(self.input_dir).as_posix())
         rotated_image_url: str = ""
         try:
             mesh_objects: dict[int, Any] = self.file_handler.load_mesh(inputfile=stl_file_path.as_posix())
             if len(mesh_objects.items()) > 1:
-                logger.warning("File '%s' contains multiple objects and is therefore skipped!", stl_file_path.as_posix())
+                logger.warning("File '%s' contains multiple objects and is therefore skipped!", stl_file_path.relative_to(self.input_dir).as_posix())
                 self.check_summary.append((stl_file_path.name, SummaryStatus.WARNING, "", ""))
                 return ReturnStatus.WARNING
             rotated_mesh: Tweak = Tweak(mesh_objects[0]["mesh"], extended_mode=True, verbose=False, min_volume=True)
             original_image_url: str = self.make_markdown_image(base_dir=self.input_dir, stl_file_path=stl_file_path.relative_to(self.input_dir))
 
             if rotated_mesh.rotation_angle >= TWEAK_THRESHOLD:
-                logger.warning("Found rotation suggestion for STL '%s'!", stl_file_path)
+                logger.warning("Found rotation suggestion for STL '%s'!", stl_file_path.relative_to(self.input_dir).as_posix())
                 output_stl_path: Path = Path(
                     stl_file_path.relative_to(self.input_dir).with_stem(f"{stl_file_path.stem}_rotated"),
                 )

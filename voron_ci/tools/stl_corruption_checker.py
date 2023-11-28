@@ -65,7 +65,6 @@ class STLCorruptionChecker:
         stl.write_ascii(path.as_posix())
 
     def _check_stl(self: Self, stl_file_path: Path) -> ReturnStatus:
-        logger.info("Checking '%s'", stl_file_path.as_posix())
         try:
             stl: Stl = Stl(stl_file_path.as_posix())
             stl.repair(verbose_flag=False)
@@ -77,7 +76,7 @@ class STLCorruptionChecker:
                 or stl.stats["facets_added"] > 0
                 or stl.stats["facets_reversed"] > 0
             ):
-                logger.error("Corrupt STL detected! Please fix '%s'!", stl_file_path.as_posix())
+                logger.error("Corrupt STL detected! Please fix '%s'!", stl_file_path.relative_to(self.input_dir).as_posix())
                 self.check_summary.append(
                     (
                         stl_file_path.name,
@@ -96,13 +95,13 @@ class STLCorruptionChecker:
                         path=Path(self.output_dir, stl_file_path.relative_to(self.input_dir)),
                     )
                 return ReturnStatus.FAILURE
-            logger.info("STL '%s' does not contain any errors!", stl_file_path.as_posix())
+            logger.info("STL '%s' does not contain any errors!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
                 (stl_file_path.name, SummaryStatus.SUCCESS, "0", "0", "0", "0", "0", "0"),
             )
             return ReturnStatus.SUCCESS
         except Exception as e:
-            logger.exception("A fatal error occurred during rotation checking", exc_info=e)
+            logger.exception("A fatal error occurred during corruption checking", exc_info=e)
             self.check_summary.append(
                 (stl_file_path.name, SummaryStatus.EXCEPTION, "0", "0", "0", "0", "0", "0"),
             )

@@ -21,11 +21,11 @@ class FileHelper:
         return files
 
     @classmethod
-    def get_folders_at_depth(cls: type[Self], input_dir: Path, depth: int, ignore: list[str]) -> list[Path]:
+    def get_shallow_folders(cls: type[Self], input_dir: Path, max_depth: int, ignore: list[str]) -> list[Path]:
         return [
             element
             for element in input_dir.glob("*/*")
-            if len(element.relative_to(input_dir).parts) < depth and element.relative_to(input_dir).as_posix() not in ignore
+            if len(element.relative_to(input_dir).parts) <= max_depth and element.relative_to(input_dir).as_posix() not in ignore
         ]
 
     @classmethod
