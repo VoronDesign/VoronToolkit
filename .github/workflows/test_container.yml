@@ -8,18 +8,10 @@ jobs:
       steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-      - name: Test container
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
-        with:
-          args: which check-stl-corruption
-      - name: Echo GITHUB_OUTPUT
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
-        with:
-            args: echo ${GITHUB_OUTPUT}
       - name: Echo GITHUB_STEP_SUMMARY
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         with:
-            args: echo ${GITHUB_STEP_SUMMARY}
+            args: debug-container
       - name: LS Repo
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         with:
