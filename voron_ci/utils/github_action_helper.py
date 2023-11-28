@@ -7,6 +7,7 @@ from typing import Self
 import requests
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
+OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
 
 logger = logging.getLogger(__name__)
 
@@ -54,4 +55,6 @@ class GithubActionHelper:
 
     @classmethod
     def write_output(cls: type[Self], output: dict[str, str]) -> None:
-        pass
+        with Path(os.environ[OUTPUT_ENV_VAR]).open(mode="a") as gh_output:
+            for key, value in output.items():
+                gh_output.write(f"{key}={value}\n")
