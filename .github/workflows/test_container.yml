@@ -1,0 +1,15 @@
+name: Test Container
+run-name: ${{ github.actor }} is testing ${{ github.ref }} 🚀
+on: 
+  workflow_dispatch:
+jobs:
+    test_job:
+      runs-on: ubuntu-latest
+      steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Test container
+        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        with:
+          args: which check-stl-corruption
+      

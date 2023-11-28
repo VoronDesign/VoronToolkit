@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "voron_ci"
-version = "0.1.0"
+version = "0"
 description = "A repository & docker container containing all necessary tools to accomplish CI tasks"
 authors = ["Florian Heilmann <Florian.Heilmann@gmx.net>"]
 license = "GPLv3"

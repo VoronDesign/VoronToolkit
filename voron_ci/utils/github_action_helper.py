@@ -1,6 +1,8 @@
 import logging
 import os
+import zipfile
 from http import HTTPStatus
+from io import BytesIO
 from pathlib import Path
 from typing import Self
 
@@ -24,11 +26,13 @@ class GithubActionHelper:
         return "\n".join(["| " + " | ".join(row_elements) + " |\n" for row_elements in rows])
 
     @classmethod
+    def create_markdown_table(cls: type[Self], preamble: str, columns: list[str], rows: list[tuple[str, ...]]) -> str:
+        return "\n".join([preamble, GithubActionHelper.create_table_header(columns=columns), GithubActionHelper.create_markdown_table_rows(rows=rows)])
+
+    @classmethod
     def print_summary_table(cls: type[Self], preamble: str, columns: list[str], rows: list[tuple[str, ...]]) -> None:
         with Path(os.environ[STEP_SUMMARY_ENV_VAR]).open(mode="a") as gh_step_summary:
-            gh_step_summary.write(preamble)
-            gh_step_summary.write(GithubActionHelper.create_table_header(columns=columns))
-            gh_step_summary.write(GithubActionHelper.create_markdown_table_rows(rows=rows))
+            gh_step_summary.write(GithubActionHelper.create_markdown_table(preamble=preamble, columns=columns, rows=rows))
 
     @classmethod
     def get_job_id(cls: type[Self], github_repository: str, github_run_id: str, job_name: str) -> str:
@@ -58,3 +62,50 @@ class GithubActionHelper:
         with Path(os.environ[OUTPUT_ENV_VAR]).open(mode="a") as gh_output:
             for key, value in output.items():
                 gh_output.write(f"{key}={value}\n")
+
+    @classmethod
+    def download_artifact(cls: type[Self], repo: str, workflow_run_id: str, artifact_name: str, target_directory: Path) -> None:
+        # GitHub API endpoint to get the artifact information
+        api_url = f"https://api.github.com/repos/{repo}/actions/runs/{workflow_run_id}/artifacts"
+
+        # Make a GET request to fetch artifact details
+        response = requests.get(api_url, timeout=20)
+        if response.status_code >= HTTPStatus.MULTIPLE_CHOICES:
+            logger.error("Failed to fetch artifacts. Status code: %d", response.status_code)
+            return
+
+        artifacts = response.json().get("artifacts", [])
+        artifact_id = None
+
+        # Find the artifact by name
+        for artifact in artifacts:
+            if artifact["name"] == artifact_name:
+                artifact_id = artifact["id"]
+                break
+
+        if artifact_id is None:
+            logger.error("Artifact '%s' not found in the workflow run %s", artifact_name, workflow_run_id)
+            return
+
+        # Download artifact zip file
+        download_url = f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact_id}/zip"
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        download_response = requests.get(download_url, headers=headers, timeout=20)
+
+        if download_response.status_code >= HTTPStatus.MULTIPLE_CHOICES:
+            logger.error("Failed to download artifact '%s'. Status code: %d", artifact_name, download_response.status_code)
+            return
+
+        # Read the zip file content into memory
+        zip_content = BytesIO(download_response.content)
+
+        # Unzip artifact contents into target directory
+        with zipfile.ZipFile(zip_content, "r") as zip_ref:
+            # Create target directory if it doesn't exist
+            target_path = Path(target_directory)
+            target_path.mkdir(parents=True, exist_ok=True)
+
+            # Extract files into the target directory
+            zip_ref.extractall(target_path)
+
+        logger.info("Artifact '%s' downloaded and extracted to '%s' successfully.", artifact_name, target_directory.as_posix())
