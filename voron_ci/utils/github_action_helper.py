@@ -24,7 +24,7 @@ class GithubActionHelper:
 
     @classmethod
     def print_summary_table(cls: type[Self], preamble: str, columns: list[str], rows: list[tuple[str, ...]]) -> None:
-        with Path(os.environ[STEP_SUMMARY_ENV_VAR]).open(mode="w") as gh_step_summary:
+        with Path(os.environ[STEP_SUMMARY_ENV_VAR]).open(mode="a") as gh_step_summary:
             gh_step_summary.write(preamble)
             gh_step_summary.write(GithubActionHelper.create_table_header(columns=columns))
             gh_step_summary.write(GithubActionHelper.create_markdown_table_rows(rows=rows))
