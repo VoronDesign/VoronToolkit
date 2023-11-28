@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Self
 
 import requests
+from git import Repo
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
 OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
@@ -62,6 +63,20 @@ class GithubActionHelper:
         with Path(os.environ[OUTPUT_ENV_VAR]).open(mode="a") as gh_output:
             for key, value in output.items():
                 gh_output.write(f"{key}={value}\n")
+
+    @classmethod
+    def last_commit_timestamp(cls: type[Self], file_or_directory: Path) -> str:
+        try:
+            # Open the Git repository
+            repo = Repo(path=file_or_directory.as_posix(), search_parent_directories=True)
+
+            # Iterate through the commits in reverse order
+            for commit in repo.iter_commits(paths=file_or_directory, max_count=1):
+                return commit.authored_datetime.isoformat()
+
+        except Exception:
+            logger.exception("An error occurred while querying last_changed timestamp for '%s'", file_or_directory.as_posix())
+        return ""
 
     @classmethod
     def download_artifact(cls: type[Self], repo: str, workflow_run_id: str, artifact_name: str, target_directory: Path) -> None:
