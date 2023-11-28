@@ -12,6 +12,8 @@ admesh = "^0.98.9"
 imagekitio = "^3.2.0"
 tweaker3 = {git = "https://github.com/ChristophSchranz/Tweaker-3.git"}
 pyyaml = "^6.0.1"
+gitpython = "^3.1.40"
+requests = "^2.31.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -60,3 +62,4 @@ check-stl-corruption = "voron_ci.tools.stl_corruption_checker:main"
 check-stl-rotation = "voron_ci.tools.stl_rotation_checker:main"
 check-files = "voron_ci.tools.file_checker:main"
 upload-images = "voron_ci.tools.imagekit_uploader:main"
+debug-container = "voron_ci.utils.debug_container:print_container_info"
