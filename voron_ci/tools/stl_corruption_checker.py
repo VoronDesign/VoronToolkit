@@ -29,6 +29,7 @@ class STLCorruptionChecker:
         self.print_gh_step_summary: bool = args.github_step_summary
         self.return_status: ReturnStatus = ReturnStatus.SUCCESS
         self.check_summary: list[tuple[str, ...]] = []
+        self.error_count: int = 0
 
     def run(self: Self) -> None:
         if self.verbosity:
@@ -46,11 +47,13 @@ class STLCorruptionChecker:
             self.return_status = ReturnStatus.SUCCESS
 
         if self.print_gh_step_summary:
-            GithubActionHelper.print_summary_table(
-                preamble=STEP_SUMMARY_PREAMBLE,
-                columns=["Filename", "Result", "Edges Fixed", "Backwards Edges", "Degenerate Facets", "Facets Removed", "Facets Added", "Facets Reversed"],
-                rows=self.check_summary,
-            )
+            with GithubActionHelper.expandable_section(
+                title=f"STL corruption check (errors: {self.error_count})", default_open=self.return_status == ReturnStatus.SUCCESS
+            ):
+                GithubActionHelper.print_summary_table(
+                    columns=["Filename", "Result", "Edges Fixed", "Backwards Edges", "Degenerate Facets", "Facets Removed", "Facets Added", "Facets Reversed"],
+                    rows=self.check_summary,
+                )
 
         GithubActionHelper.write_output(output={"extended-outcome": EXTENDED_OUTCOME[self.return_status]})
 
@@ -94,6 +97,7 @@ class STLCorruptionChecker:
                         stl=stl,
                         path=Path(self.output_dir, stl_file_path.relative_to(self.input_dir)),
                     )
+                self.error_count += 1
                 return ReturnStatus.FAILURE
             logger.info("STL '%s' does not contain any errors!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
@@ -105,6 +109,7 @@ class STLCorruptionChecker:
             self.check_summary.append(
                 (stl_file_path.name, SummaryStatus.EXCEPTION, "0", "0", "0", "0", "0", "0"),
             )
+            self.error_count += 1
             return ReturnStatus.EXCEPTION
 
 

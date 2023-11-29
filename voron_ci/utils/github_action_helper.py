@@ -1,7 +1,9 @@
+import contextlib
 import datetime
 import logging
 import os
 import zipfile
+from collections.abc import Generator
 from http import HTTPStatus
 from io import BytesIO
 from pathlib import Path
@@ -18,23 +20,35 @@ logger = logging.getLogger(__name__)
 
 class GithubActionHelper:
     @classmethod
-    def create_table_header(cls: type[Self], columns: list[str]) -> str:
+    @contextlib.contextmanager
+    def expandable_section(cls: type[Self], title: str, *, default_open: bool) -> Generator[None, None, None]:
+        with Path(os.environ[STEP_SUMMARY_ENV_VAR]).open(mode="a") as gh_step_summary:
+            try:
+                gh_step_summary.write(f"<details{' open' if default_open else ''}>\n")
+                gh_step_summary.write(f"<summary>{title}</summary>\n\n")
+                gh_step_summary.flush()
+                yield
+            finally:
+                gh_step_summary.write("</details>\n")
+
+    @classmethod
+    def _create_table_header(cls: type[Self], columns: list[str]) -> str:
         column_names = "| " + " | ".join(columns) + " |"
         dividers = "| " + " | ".join(["---"] * len(columns)) + " |"
         return f"{column_names}\n{dividers}"
 
     @classmethod
-    def create_markdown_table_rows(cls: type[Self], rows: list[tuple[str, ...]]) -> str:
+    def _create_markdown_table_rows(cls: type[Self], rows: list[tuple[str, ...]]) -> str:
         return "\n".join(["| " + " | ".join(row_elements) + " |" for row_elements in rows])
 
     @classmethod
     def create_markdown_table(cls: type[Self], preamble: str, columns: list[str], rows: list[tuple[str, ...]]) -> str:
-        return "\n".join([preamble, GithubActionHelper.create_table_header(columns=columns), GithubActionHelper.create_markdown_table_rows(rows=rows)])
+        return "\n".join([preamble, GithubActionHelper._create_table_header(columns=columns), GithubActionHelper._create_markdown_table_rows(rows=rows)])
 
     @classmethod
-    def print_summary_table(cls: type[Self], preamble: str, columns: list[str], rows: list[tuple[str, ...]]) -> None:
+    def print_summary_table(cls: type[Self], columns: list[str], rows: list[tuple[str, ...]]) -> None:
         with Path(os.environ[STEP_SUMMARY_ENV_VAR]).open(mode="a") as gh_step_summary:
-            gh_step_summary.write(GithubActionHelper.create_markdown_table(preamble=preamble, columns=columns, rows=rows))
+            gh_step_summary.write(f"{GithubActionHelper._create_table_header(columns=columns)}\n{GithubActionHelper._create_markdown_table_rows(rows=rows)}\n")
 
     @classmethod
     def get_job_id(cls: type[Self], github_repository: str, github_run_id: str, job_name: str) -> str:
@@ -64,6 +78,15 @@ class GithubActionHelper:
         with Path(os.environ[OUTPUT_ENV_VAR]).open(mode="a") as gh_output:
             for key, value in output.items():
                 gh_output.write(f"{key}={value}\n")
+
+    @classmethod
+    def write_output_multiline(cls: type[Self], output: dict[str, list[str]]) -> None:
+        with Path(os.environ[OUTPUT_ENV_VAR]).open(mode="a") as gh_output:
+            for key, value in output.items():
+                gh_output.write(f"{key}<<GH_EOF\n")
+                for line in value:
+                    gh_output.write(f"{line}\n")
+                gh_output.write("GH_EOF\n")
 
     @classmethod
     def last_commit_timestamp(cls: type[Self], file_or_directory: Path) -> str:

@@ -60,7 +60,8 @@ ignore_missing_imports = true
 [tool.poetry.scripts]
 check-stl-corruption = "voron_ci.tools.stl_corruption_checker:main"
 check-stl-rotation = "voron_ci.tools.stl_rotation_checker:main"
-check-files = "voron_ci.tools.file_checker:main"
+check-mod-structure = "voron_ci.tools.mod_structure_checker:main"
+check-whitespace = "voron_ci.tools.whitespace_checker:main"
 upload-images = "voron_ci.tools.imagekit_uploader:main"
 generate-readme = "voron_ci.tools.readme_generator:main"
 debug-container = "voron_ci.utils.debug_container:print_container_info"

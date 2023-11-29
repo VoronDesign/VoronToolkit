@@ -14,12 +14,6 @@ from voron_ci.utils.logging import init_logging
 logger = init_logging(__name__)
 
 
-STEP_SUMMARY_PREAMBLE = """
-## Folder check
-
-"""
-
-
 class FileErrors(StrEnum):
     file_outside_mod_folder = "The file '{}' is located outside the expected folder structure of `printer_mods/user/mod`"
     mod_missing_metadata = "The mod '{}' does not have a metadata.yml file"
@@ -30,7 +24,7 @@ IGNORE_FILES = ["README.md", "mods.json"]
 MOD_DEPTH = 2
 
 
-class FileChecker:
+class ModStructureChecker:
     def __init__(self: Self, args: argparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.verbosity: bool = args.verbose
@@ -84,14 +78,16 @@ class FileChecker:
 
         if self.print_gh_step_summary:
             self.check_summary = [(path.relative_to(self.input_dir).as_posix(), reason) for path, reason in self.errors.items()]
-            GithubActionHelper.print_summary_table(
-                preamble=STEP_SUMMARY_PREAMBLE,
-                columns=[
-                    "File/Folder",
-                    "Reason",
-                ],
-                rows=self.check_summary,
-            )
+            with GithubActionHelper.expandable_section(
+                title=f"Mod structure check (errors: {len(self.errors)})", default_open=self.return_status == ReturnStatus.SUCCESS
+            ):
+                GithubActionHelper.print_summary_table(
+                    columns=[
+                        "File/Folder",
+                        "Reason",
+                    ],
+                    rows=self.check_summary,
+                )
 
         GithubActionHelper.write_output(output={"extended-outcome": EXTENDED_OUTCOME[self.return_status]})
 
@@ -138,7 +134,7 @@ def main() -> None:
         default=False,
     )
     args: argparse.Namespace = parser.parse_args()
-    FileChecker(args=args).run()
+    ModStructureChecker(args=args).run()
 
 
 if __name__ == "__main__":

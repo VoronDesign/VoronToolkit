@@ -70,10 +70,8 @@ class ReadmeGenerator:
                 )
             )
             prev_username = mod["creator"]
-
-        GithubActionHelper.print_summary_table(
-            preamble="# Printer Readme Preview", columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"], rows=readme_rows
-        )
+        with GithubActionHelper.expandable_section(title="README.md preview", default_open=True):
+            GithubActionHelper.print_summary_table(columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"], rows=readme_rows)
 
         if self.json_path:
             logger.info("Writing json file to '%s'", self.json_path)

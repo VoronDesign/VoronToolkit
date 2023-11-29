@@ -18,12 +18,6 @@ from voron_ci.utils.logging import init_logging
 
 logger = init_logging(__name__)
 
-
-STEP_SUMMARY_PREAMBLE = """
-## STL rotation check summary
-
-"""
-
 TWEAK_THRESHOLD = 0.1
 
 
@@ -39,6 +33,7 @@ class STLRotationChecker:
         self.file_handler: FileHandler.FileHandler = FileHandler.FileHandler()
         self.return_status: ReturnStatus = ReturnStatus.SUCCESS
         self.check_summary: list[tuple[str, ...]] = []
+        self.error_count: int = 0
 
     @staticmethod
     def get_random_string(length: int) -> str:
@@ -78,17 +73,19 @@ class STLRotationChecker:
 
         with ThreadPoolExecutor() as pool:
             return_statuses: list[ReturnStatus] = list(pool.map(self._check_stl, stl_paths))
+
         if return_statuses:
             self.return_status = max(*return_statuses, self.return_status)
         else:
             self.return_status = ReturnStatus.SUCCESS
-
         if self.print_gh_step_summary:
-            GithubActionHelper.print_summary_table(
-                preamble=STEP_SUMMARY_PREAMBLE,
-                columns=["Filename", "Result", "Current orientation", "Suggested orientation"],
-                rows=self.check_summary,
-            )
+            with GithubActionHelper.expandable_section(
+                title=f"STL rotation check (errors: {self.error_count})", default_open=self.return_status == ReturnStatus.SUCCESS
+            ):
+                GithubActionHelper.print_summary_table(
+                    columns=["Filename", "Result", "Current orientation", "Suggested orientation"],
+                    rows=self.check_summary,
+                )
 
         GithubActionHelper.write_output(output={"extended-outcome": EXTENDED_OUTCOME[self.return_status]})
 
@@ -112,6 +109,7 @@ class STLRotationChecker:
             if len(mesh_objects.items()) > 1:
                 logger.warning("File '%s' contains multiple objects and is therefore skipped!", stl_file_path.relative_to(self.input_dir).as_posix())
                 self.check_summary.append((stl_file_path.name, SummaryStatus.WARNING, "", ""))
+                self.error_count += 1
                 return ReturnStatus.WARNING
             rotated_mesh: Tweak = Tweak(mesh_objects[0]["mesh"], extended_mode=True, verbose=False, min_volume=True)
             original_image_url: str = self.make_markdown_image(base_dir=self.input_dir, stl_file_path=stl_file_path.relative_to(self.input_dir))
@@ -131,12 +129,14 @@ class STLRotationChecker:
                         rotated_image_url,
                     ),
                 )
+                self.error_count += 1
                 return ReturnStatus.WARNING
             self.check_summary.append((stl_file_path.name, SummaryStatus.SUCCESS, original_image_url, ""))
             return ReturnStatus.SUCCESS
         except Exception as e:
             logger.exception("A fatal error occurred during rotation checking", exc_info=e)
             self.check_summary.append((stl_file_path.name, SummaryStatus.EXCEPTION, "", ""))
+            self.error_count += 1
             return ReturnStatus.EXCEPTION
 
 
