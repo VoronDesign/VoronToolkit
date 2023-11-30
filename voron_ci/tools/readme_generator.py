@@ -1,9 +1,9 @@
-import argparse
 import json
 import textwrap
 from pathlib import Path
 from typing import Any, Self
 
+import configargparse
 import yaml
 
 from voron_ci.utils.github_action_helper import GithubActionHelper
@@ -27,7 +27,7 @@ contact the admins on Discord to have your mod moved to this folder.
 
 
 class ReadmeGenerator:
-    def __init__(self: Self, args: argparse.Namespace) -> None:
+    def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.verbosity: bool = args.verbose
         self.json_path: str = args.json_path
@@ -89,7 +89,7 @@ class ReadmeGenerator:
 
 
 def main() -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+    parser: configargparse.ArgumentParser = configargparse.ArgumentParser(
         prog="VoronDesign VoronUsers readme generator",
         description="This tool is used to generate the readme and json overview files for VORONUsers",
     )
@@ -127,7 +127,7 @@ def main() -> None:
         help="Print debug output to stdout",
         default=False,
     )
-    args: argparse.Namespace = parser.parse_args()
+    args: configargparse.Namespace = parser.parse_args()
     ReadmeGenerator(args=args).run()
 
 

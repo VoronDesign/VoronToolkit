@@ -1,8 +1,9 @@
-import argparse
 import os
 import string
 import sys
 from typing import Self
+
+import configargparse
 
 from voron_ci.contants import EXTENDED_OUTCOME, ReturnStatus
 from voron_ci.utils.github_action_helper import GithubActionHelper
@@ -17,9 +18,8 @@ STEP_SUMMARY_PREAMBLE = """
 
 
 class WhitespaceChecker:
-    def __init__(self: Self, args: argparse.Namespace) -> None:
+    def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_env_var: str = args.input_env_var
-        self.output_gh_var: str = args.output_gh_var
         self.verbosity: bool = args.verbose
         self.fail_on_error: bool = args.fail_on_error
         self.print_gh_step_summary: bool = args.github_step_summary
@@ -47,7 +47,7 @@ class WhitespaceChecker:
 
         output_file_list: list[str] = [input_file.replace("[", "\\[").replace("]", "\\]") for input_file in input_file_list]
 
-        GithubActionHelper.write_output_multiline(output={self.output_gh_var: output_file_list})
+        GithubActionHelper.write_output_multiline(output={"FILE_LIST_SANITIZED": output_file_list})
 
     def run(self: Self) -> None:
         if self.verbosity:
@@ -56,9 +56,7 @@ class WhitespaceChecker:
         logger.info("Starting files check from env var '%s'", self.input_env_var)
 
         self._check_for_whitespace()
-
-        if self.output_gh_var:
-            self._write_sanitized_output()
+        self._write_sanitized_output()
 
         if self.print_gh_step_summary:
             with GithubActionHelper.expandable_section(
@@ -80,7 +78,7 @@ class WhitespaceChecker:
 
 
 def main() -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+    parser: configargparse.ArgumentParser = configargparse.ArgumentParser(
         prog="VoronDesign VoronUsers whitespace checker",
         description="This tool is used to check changed files inside an env var for whitespace. The list is also prepared for sparse-checkout",
     )
@@ -109,15 +107,6 @@ def main() -> None:
         default=False,
     )
     parser.add_argument(
-        "-o",
-        "--output_gh_var",
-        required=False,
-        action="store",
-        type=str,
-        help="Github output variable to store a sanitized list of files into",
-        default="",
-    )
-    parser.add_argument(
         "-g",
         "--github_step_summary",
         required=False,
@@ -125,7 +114,7 @@ def main() -> None:
         help="Whether to output a step summary when running inside a github action",
         default=False,
     )
-    args: argparse.Namespace = parser.parse_args()
+    args: configargparse.Namespace = parser.parse_args()
     WhitespaceChecker(args=args).run()
 
 

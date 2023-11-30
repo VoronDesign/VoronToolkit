@@ -1,9 +1,9 @@
-import argparse
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Self
 
+import configargparse
 from admesh import Stl
 
 from voron_ci.contants import EXTENDED_OUTCOME, ReturnStatus, SummaryStatus
@@ -21,7 +21,7 @@ STEP_SUMMARY_PREAMBLE = """
 
 
 class STLCorruptionChecker:
-    def __init__(self: Self, args: argparse.Namespace) -> None:
+    def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.output_dir: Path | None = Path(Path.cwd(), args.output_dir) if args.output_dir else None
         self.verbosity: bool = args.verbose
@@ -114,7 +114,7 @@ class STLCorruptionChecker:
 
 
 def main() -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+    parser: configargparse.ArgumentParser = configargparse.ArgumentParser(
         prog="VoronDesign STL checker & fixer",
         description="This tool can be used to check a provided folder of STLs and potentially fix them",
     )
@@ -159,7 +159,7 @@ def main() -> None:
         help="Whether to output a step summary when running inside a github action",
         default=False,
     )
-    args: argparse.Namespace = parser.parse_args()
+    args: configargparse.Namespace = parser.parse_args()
     STLCorruptionChecker(args=args).run()
 
 

@@ -1,4 +1,3 @@
-import argparse
 import os
 import sys
 import tempfile
@@ -6,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
+import configargparse
 from imagekitio import ImageKit
 from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions
 
@@ -19,9 +19,11 @@ if TYPE_CHECKING:
 
 logger = init_logging(__name__)
 
+ENV_VAR_PREFIX = "IMAGEKIT_UPLOADER"
+
 
 class ImageKitUploader:
-    def __init__(self: Self, args: argparse.Namespace) -> None:
+    def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.artifact_name: str = args.artifact_name
         self.workflow_run_id: str = args.workflow_run_id
         self.verbosity: bool = args.verbose
@@ -86,7 +88,7 @@ class ImageKitUploader:
 
 
 def main() -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+    parser: configargparse.ArgumentParser = configargparse.ArgumentParser(
         prog="VoronDesign Imagekit uploader",
         description="This tool can be used to upload images to an imagekit account",
     )
@@ -96,6 +98,7 @@ def main() -> None:
         required=True,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_WORKFLOW_RUN_ID",
         help="Run ID of the workflow from which to pull the artifact",
     )
     parser.add_argument(
@@ -104,13 +107,42 @@ def main() -> None:
         required=True,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_ARTIFACT_NAME",
         help="Name of the artifact to download and extract images from",
+    )
+    parser.add_argument(
+        "-r",
+        "--private_key",
+        required=True,
+        action="store",
+        type=str,
+        env_var=f"{ENV_VAR_PREFIX}_PRIVATE_KEY",
+        help="Imagekit private key",
+    )
+    parser.add_argument(
+        "-p",
+        "--public_key",
+        required=True,
+        action="store",
+        type=str,
+        env_var=f"{ENV_VAR_PREFIX}_PUBLIC_KEY",
+        help="Imagekit public key",
+    )
+    parser.add_argument(
+        "-u",
+        "--url_endpoint",
+        required=True,
+        action="store",
+        type=str,
+        env_var=f"{ENV_VAR_PREFIX}_URL_ENDPOINT",
+        help="Imagekit url endpoint (e.g. https://ik.imagekit.io/username)",
     )
     parser.add_argument(
         "-f",
         "--fail_on_error",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_FAIL_ON_ERROR",
         help="Whether to return an error exit code if one of the STLs is faulty",
         default=False,
     )
@@ -119,10 +151,11 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )
-    args: argparse.Namespace = parser.parse_args()
+    args: configargparse.Namespace = parser.parse_args()
     ImageKitUploader(args=args).run()
 
 

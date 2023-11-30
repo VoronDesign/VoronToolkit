@@ -1,4 +1,3 @@
-import argparse
 import random
 import re
 import string
@@ -8,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Self
 
+import configargparse
 from tweaker3 import FileHandler
 from tweaker3.MeshTweaker import Tweak
 
@@ -22,7 +22,7 @@ TWEAK_THRESHOLD = 0.1
 
 
 class STLRotationChecker:
-    def __init__(self: Self, args: argparse.Namespace) -> None:
+    def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.output_dir: Path | None = Path(Path.cwd(), args.output_dir) if args.output_dir else None
         self.verbosity: bool = args.verbose
@@ -141,7 +141,7 @@ class STLRotationChecker:
 
 
 def main() -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+    parser: configargparse.ArgumentParser = configargparse.ArgumentParser(
         prog="VoronDesign STL rotation checker & fixer",
         description="This tool can be used to check the rotation of STLs in a folder and potentially fix them",
     )
@@ -204,7 +204,7 @@ def main() -> None:
         help="Whether to output a step summary when running inside a github action",
         default=False,
     )
-    args: argparse.Namespace = parser.parse_args()
+    args: configargparse.Namespace = parser.parse_args()
     STLRotationChecker(args=args).run()
 
 

@@ -1,9 +1,9 @@
-import argparse
 import sys
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Self
 
+import configargparse
 import yaml
 
 from voron_ci.contants import EXTENDED_OUTCOME, ReturnStatus
@@ -22,10 +22,11 @@ class FileErrors(StrEnum):
 
 IGNORE_FILES = ["README.md", "mods.json"]
 MOD_DEPTH = 2
+ENV_VAR_PREFIX = "MOD_STRUCTURE_CHECKER"
 
 
 class ModStructureChecker:
-    def __init__(self: Self, args: argparse.Namespace) -> None:
+    def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.verbosity: bool = args.verbose
         self.fail_on_error: bool = args.fail_on_error
@@ -97,7 +98,7 @@ class ModStructureChecker:
 
 
 def main() -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+    parser: configargparse.ArgumentParser = configargparse.ArgumentParser(
         prog="VoronDesign VoronUsers mod checker",
         description="This tool is used to check whether all mods in VoronUsers are properly specified",
     )
@@ -133,7 +134,7 @@ def main() -> None:
         help="Whether to output a step summary when running inside a github action",
         default=False,
     )
-    args: argparse.Namespace = parser.parse_args()
+    args: configargparse.Namespace = parser.parse_args()
     ModStructureChecker(args=args).run()
 
 
