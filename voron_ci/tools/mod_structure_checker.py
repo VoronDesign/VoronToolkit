@@ -28,13 +28,15 @@ ENV_VAR_PREFIX = "MOD_STRUCTURE_CHECKER"
 class ModStructureChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
-        self.verbosity: bool = args.verbose
         self.fail_on_error: bool = args.fail_on_error
         self.print_gh_step_summary: bool = args.github_step_summary
         self.return_status: ReturnStatus = ReturnStatus.SUCCESS
         self.check_summary: list[tuple[str, ...]] = []
 
         self.errors: dict[Path, str] = {}
+
+        if args.verbose:
+            logger.setLevel("INFO")
 
     def _check_mods(self: Self, input_dir: Path) -> None:
         mod_folders = [folder for folder in input_dir.glob("*/*") if folder.is_dir() and folder.relative_to(input_dir).as_posix() not in IGNORE_FILES]
@@ -69,9 +71,6 @@ class ModStructureChecker:
             self.return_status = ReturnStatus.FAILURE
 
     def run(self: Self) -> None:
-        if self.verbosity:
-            logger.setLevel("INFO")
-
         logger.info("Starting files check in '%s'", str(self.input_dir))
 
         self._check_shallow_files(input_dir=self.input_dir)
@@ -108,6 +107,7 @@ def main() -> None:
         required=True,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_INPUT_DIR",
         help="Directory containing STL files to be checked",
     )
     parser.add_argument(
@@ -115,6 +115,7 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )
@@ -123,6 +124,7 @@ def main() -> None:
         "--fail_on_error",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_FAIL_ON_ERROR",
         help="Whether to return an error exit code if one of the STLs is faulty",
         default=False,
     )
@@ -131,6 +133,7 @@ def main() -> None:
         "--github_step_summary",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_GITHUB_STEP_SUMMARY",
         help="Whether to output a step summary when running inside a github action",
         default=False,
     )

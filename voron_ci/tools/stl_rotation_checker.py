@@ -19,13 +19,13 @@ from voron_ci.utils.logging import init_logging
 logger = init_logging(__name__)
 
 TWEAK_THRESHOLD = 0.1
+ENV_VAR_PREFIX = "ROTATION_CHECKER"
 
 
 class STLRotationChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.output_dir: Path | None = Path(Path.cwd(), args.output_dir) if args.output_dir else None
-        self.verbosity: bool = args.verbose
         self.fail_on_error: bool = args.fail_on_error
         self.imagekit_endpoint: str | None = args.url_endpoint if args.url_endpoint else None
         self.imagekit_subfolder: str = args.imagekit_subfolder
@@ -34,6 +34,9 @@ class STLRotationChecker:
         self.return_status: ReturnStatus = ReturnStatus.SUCCESS
         self.check_summary: list[tuple[str, ...]] = []
         self.error_count: int = 0
+
+        if args.verbose:
+            logger.setLevel("INFO")
 
     @staticmethod
     def get_random_string(length: int) -> str:
@@ -64,9 +67,6 @@ class STLRotationChecker:
         return f'[<img src="{image_address}" width="100" height="100">]({image_address})'
 
     def run(self: Self) -> None:
-        if self.verbosity:
-            logger.setLevel("INFO")
-
         logger.info("Searching for STL files in '%s'", str(self.input_dir))
 
         stl_paths: list[Path] = FileHelper.find_files(directory=self.input_dir, extension="stl", max_files=40)
@@ -151,6 +151,7 @@ def main() -> None:
         required=True,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_INPUT_DIR",
         help="Directory containing STL files to be checked",
     )
     parser.add_argument(
@@ -159,6 +160,7 @@ def main() -> None:
         required=False,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_OUTPUT_DIR",
         help="Directory to store the fixed STL files into",
         default="",
     )
@@ -168,6 +170,7 @@ def main() -> None:
         required=False,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_IMAGEKIT_ENDPOINT",
         help="Imagekit endpoint",
         default="",
     )
@@ -177,6 +180,7 @@ def main() -> None:
         required=False,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_IMAGEKIT_SUBFOLDER",
         help="Image subfolder within the imagekit storage",
         default="",
     )
@@ -185,6 +189,7 @@ def main() -> None:
         "--fail_on_error",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_FAIL_ON_ERROR",
         help="Whether to return an error exit code if one of the STLs is faulty",
         default=False,
     )
@@ -193,6 +198,7 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )
@@ -201,6 +207,7 @@ def main() -> None:
         "--github_step_summary",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_GITHUB_STEP_SUMMARY",
         help="Whether to output a step summary when running inside a github action",
         default=False,
     )

@@ -25,17 +25,19 @@ contact the admins on Discord to have your mod moved to this folder.
 
 """
 
+ENV_VAR_PREFIX = "README_GENERATOR"
+
 
 class ReadmeGenerator:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
-        self.verbosity: bool = args.verbose
         self.json_path: str = args.json_path
         self.readme_path: str = args.readme_path
 
-    def run(self: Self) -> None:
-        if self.verbosity:
+        if args.verbose:
             logger.setLevel("INFO")
+
+    def run(self: Self) -> None:
         logger.info(
             "ReadmeGenerator starting up with readme_path: '%s', json_path: '%s', input_dir: '%s'", self.readme_path, self.json_path, self.input_dir.as_posix()
         )
@@ -99,6 +101,7 @@ def main() -> None:
         required=True,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_INPUT_DIR",
         help="Base directory to search for metadata files",
     )
     parser.add_argument(
@@ -107,6 +110,7 @@ def main() -> None:
         required=False,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_README_PATH",
         help="Readme output path (leave empty to not generate a Readme file)",
         default="",
     )
@@ -116,6 +120,7 @@ def main() -> None:
         required=False,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_JSON_PATH",
         help="Json output path (leave empty to not generate a json file)",
         default="",
     )
@@ -124,6 +129,7 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )
