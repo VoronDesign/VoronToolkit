@@ -1,4 +1,3 @@
-import argparse
 import os
 import sys
 import tempfile
@@ -6,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
+import configargparse
 from imagekitio import ImageKit
 from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions
 
@@ -19,20 +19,25 @@ if TYPE_CHECKING:
 
 logger = init_logging(__name__)
 
+ENV_VAR_PREFIX = "IMAGEKIT_UPLOADER"
+
 
 class ImageKitUploader:
-    def __init__(self: Self, args: argparse.Namespace) -> None:
+    def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.artifact_name: str = args.artifact_name
         self.workflow_run_id: str = args.workflow_run_id
-        self.verbosity: bool = args.verbose
         self.fail_on_error: bool = args.fail_on_error
+        self.github_repository: str = args.github_repository
         self.tmp_path: Path = Path()
+
+        if args.verbose:
+            logger.setLevel("INFO")
 
         try:
             self.imagekit: ImageKit = ImageKit(
-                private_key=os.environ["IMAGEKIT_PRIVATE_KEY"],
-                public_key=os.environ["IMAGEKIT_PUBLIC_KEY"],
-                url_endpoint=os.environ["IMAGEKIT_URL_ENDPOINT"],
+                private_key=args.private_key,
+                public_key=args.public_key,
+                url_endpoint=args.url_endpoint,
             )
             self.imagekit_options_common: UploadFileRequestOptions = UploadFileRequestOptions(
                 use_unique_file_name=False,
@@ -56,16 +61,13 @@ class ImageKitUploader:
             return result.url != ""
 
     def run(self: Self) -> None:
-        if self.verbosity:
-            logger.setLevel("INFO")
-
         logger.info("Downloading artifact '%s' from workflow '%s'", self.artifact_name, self.workflow_run_id)
         with tempfile.TemporaryDirectory() as tmpdir:
             logger.info("Created temporary directory '%s'", tmpdir)
             self.tmp_path = Path(tmpdir)
 
             GithubActionHelper.download_artifact(
-                repo=os.environ["GITHUB_REPOSITORY"],
+                repo=self.github_repository,
                 workflow_run_id=self.workflow_run_id,
                 artifact_name=self.artifact_name,
                 target_directory=self.tmp_path,
@@ -86,7 +88,7 @@ class ImageKitUploader:
 
 
 def main() -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+    parser: configargparse.ArgumentParser = configargparse.ArgumentParser(
         prog="VoronDesign Imagekit uploader",
         description="This tool can be used to upload images to an imagekit account",
     )
@@ -96,6 +98,7 @@ def main() -> None:
         required=True,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_WORKFLOW_RUN_ID",
         help="Run ID of the workflow from which to pull the artifact",
     )
     parser.add_argument(
@@ -104,13 +107,42 @@ def main() -> None:
         required=True,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_ARTIFACT_NAME",
         help="Name of the artifact to download and extract images from",
+    )
+    parser.add_argument(
+        "-r",
+        "--private_key",
+        required=True,
+        action="store",
+        type=str,
+        env_var=f"{ENV_VAR_PREFIX}_PRIVATE_KEY",
+        help="Imagekit private key",
+    )
+    parser.add_argument(
+        "-p",
+        "--public_key",
+        required=True,
+        action="store",
+        type=str,
+        env_var=f"{ENV_VAR_PREFIX}_PUBLIC_KEY",
+        help="Imagekit public key",
+    )
+    parser.add_argument(
+        "-u",
+        "--url_endpoint",
+        required=True,
+        action="store",
+        type=str,
+        env_var=f"{ENV_VAR_PREFIX}_URL_ENDPOINT",
+        help="Imagekit url endpoint (e.g. https://ik.imagekit.io/username)",
     )
     parser.add_argument(
         "-f",
         "--fail_on_error",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_FAIL_ON_ERROR",
         help="Whether to return an error exit code if one of the STLs is faulty",
         default=False,
     )
@@ -119,10 +151,21 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )
-    args: argparse.Namespace = parser.parse_args()
+    parser.add_argument(
+        "-g",
+        "--github_repository",
+        required=False,
+        action="store",
+        type=str,
+        env_var=f"{ENV_VAR_PREFIX}_GITHUB_REPOSITORY",
+        default=os.environ["GITHUB_REPOSITORY"],
+        help="Repository from which to download the artifact",
+    )
+    args: configargparse.Namespace = parser.parse_args()
     ImageKitUploader(args=args).run()
 
 

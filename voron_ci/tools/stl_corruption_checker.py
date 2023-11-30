@@ -1,9 +1,9 @@
-import argparse
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Self
 
+import configargparse
 from admesh import Stl
 
 from voron_ci.contants import EXTENDED_OUTCOME, ReturnStatus, SummaryStatus
@@ -14,27 +14,23 @@ from voron_ci.utils.logging import init_logging
 logger = init_logging(__name__)
 
 
-STEP_SUMMARY_PREAMBLE = """
-## STL corruption check summary
-
-"""
+ENV_VAR_PREFIX = "CORRUPTION_CHECKER"
 
 
 class STLCorruptionChecker:
-    def __init__(self: Self, args: argparse.Namespace) -> None:
+    def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.output_dir: Path | None = Path(Path.cwd(), args.output_dir) if args.output_dir else None
-        self.verbosity: bool = args.verbose
         self.fail_on_error: bool = args.fail_on_error
         self.print_gh_step_summary: bool = args.github_step_summary
         self.return_status: ReturnStatus = ReturnStatus.SUCCESS
         self.check_summary: list[tuple[str, ...]] = []
         self.error_count: int = 0
 
-    def run(self: Self) -> None:
-        if self.verbosity:
+        if args.verbose:
             logger.setLevel("INFO")
 
+    def run(self: Self) -> None:
         logger.info("Searching for STL files in '%s'", str(self.input_dir))
 
         stl_paths: list[Path] = FileHelper.find_files(directory=self.input_dir, extension="stl", max_files=40)
@@ -114,7 +110,7 @@ class STLCorruptionChecker:
 
 
 def main() -> None:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+    parser: configargparse.ArgumentParser = configargparse.ArgumentParser(
         prog="VoronDesign STL checker & fixer",
         description="This tool can be used to check a provided folder of STLs and potentially fix them",
     )
@@ -124,6 +120,7 @@ def main() -> None:
         required=True,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_INPUT_DIR",
         help="Directory containing STL files to be checked",
     )
     parser.add_argument(
@@ -132,6 +129,7 @@ def main() -> None:
         required=False,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_OUTPUT_DIR",
         help="Directory to store the fixed STL files into",
         default="",
     )
@@ -140,6 +138,7 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )
@@ -148,6 +147,7 @@ def main() -> None:
         "--fail_on_error",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_FAIL_ON_ERROR",
         help="Whether to return an error exit code if one of the STLs is faulty",
         default=False,
     )
@@ -156,10 +156,11 @@ def main() -> None:
         "--github_step_summary",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_GITHUB_STEP_SUMMARY",
         help="Whether to output a step summary when running inside a github action",
         default=False,
     )
-    args: argparse.Namespace = parser.parse_args()
+    args: configargparse.Namespace = parser.parse_args()
     STLCorruptionChecker(args=args).run()
 
 

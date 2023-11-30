@@ -14,6 +14,7 @@ tweaker3 = {git = "https://github.com/ChristophSchranz/Tweaker-3.git"}
 pyyaml = "^6.0.1"
 gitpython = "^3.1.40"
 requests = "^2.31.0"
+configargparse = "^1.7"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -54,6 +55,7 @@ module = [
     "admesh.*",
     "tweaker3.*",
     "imagekitio.*",
+    "configargparse.*",
 ]
 ignore_missing_imports = true
 
