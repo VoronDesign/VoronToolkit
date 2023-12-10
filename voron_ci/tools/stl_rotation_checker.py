@@ -136,7 +136,6 @@ class STLRotationChecker:
 
     def _check_stl(self: Self, stl_file_path: Path) -> ReturnStatus:
         logger.info("Checking '%s'", stl_file_path.relative_to(self.input_dir).as_posix())
-        rotated_image_url: str = ""
         try:
             mesh_objects: dict[int, Any] = FileHandler().load_mesh(inputfile=stl_file_path.as_posix())
             if len(mesh_objects.items()) > 1:
