@@ -1,69 +1,106 @@
 import random
 import re
 import string
+import struct
 import subprocess
-import sys
+import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Self
 
 import configargparse
-from tweaker3 import FileHandler
+from tweaker3.FileHandler import FileHandler
 from tweaker3.MeshTweaker import Tweak
 
-from voron_ci.contants import EXTENDED_OUTCOME, ReturnStatus, SummaryStatus
+from voron_ci.constants import ReturnStatus, SummaryStatus
+from voron_ci.utils.action_summary import ActionSummaryTable
 from voron_ci.utils.file_helper import FileHelper
-from voron_ci.utils.github_action_helper import GithubActionHelper
+from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
 from voron_ci.utils.logging import init_logging
 
 logger = init_logging(__name__)
 
 TWEAK_THRESHOLD = 0.1
 ENV_VAR_PREFIX = "ROTATION_CHECKER"
+STL_THUMB_IMAGE_SIZE = 500
 
 
 class STLRotationChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
-        self.output_dir: Path | None = Path(Path.cwd(), args.output_dir) if args.output_dir else None
-        self.fail_on_error: bool = args.fail_on_error
-        self.imagekit_endpoint: str | None = args.url_endpoint if args.url_endpoint else None
+        self.imagekit_endpoint: str | None = args.imagekit_endpoint if args.imagekit_endpoint else None
         self.imagekit_subfolder: str = args.imagekit_subfolder
-        self.print_gh_step_summary: bool = args.github_step_summary
-        self.file_handler: FileHandler.FileHandler = FileHandler.FileHandler()
         self.return_status: ReturnStatus = ReturnStatus.SUCCESS
-        self.check_summary: list[tuple[str, ...]] = []
-        self.error_count: int = 0
+        self.check_summary: list[list[str]] = []
+        self.gh_helper: GithubActionHelper = GithubActionHelper(
+            output_path=args.output_dir, do_gh_step_summary=args.github_step_summary, ignore_warnings=args.ignore_warnings
+        )
 
         if args.verbose:
             logger.setLevel("INFO")
 
+    def _get_rotated_stl_bytes(self: Self, objects: dict[int, Any], info: dict[int, Any]) -> bytes:
+        # Adapted from https://github.com/ChristophSchranz/Tweaker-3/blob/master/FileHandler.py
+        # to return the bytes instead of writing them to a file
+        # Note: At this point we have already established that there is only one object in the STL file
+
+        header: bytes = "Tweaked on {}".format(time.strftime("%a %d %b %Y %H:%M:%S")).encode().ljust(79, b" ") + b"\n"
+        length: bytes = b""
+        mesh: list[bytes] = []
+        for part, content in objects.items():
+            mesh = content["mesh"]
+            partlength = int(len(mesh) / 3)
+            mesh = FileHandler().rotate_bin_stl(info[part]["matrix"], mesh)
+            length = struct.pack("<I", partlength)
+            break
+        return bytes(bytearray(header + length + b"".join(mesh)))
+
     @staticmethod
-    def get_random_string(length: int) -> str:
+    def _get_random_string(length: int) -> str:
         # choose from all lower/uppercase letters
         letters: str = string.ascii_lowercase + string.ascii_uppercase
         result_str: str = "".join(random.choice(letters) for _ in range(length))  # noqa: S311
         return result_str
 
-    def make_markdown_image(self: Self, base_dir: Path | None, stl_file_path: Path) -> str:
+    def _make_markdown_image(self: Self, stl_file_path: Path, stl_file_contents: bytes | None = None) -> str:
+        # Check inputs
+        if not self.imagekit_endpoint:
+            return ""
+        if self.imagekit_subfolder is None:
+            logger.warning("Warning, no imagekit subfolder provided!")
+
         # Generate the filename:
         #  Replace stl with png
         #  Append 8 digit random string to avoid collisions. This is necessary so that old CI runs still show their respective images"
-        if not self.output_dir or not self.imagekit_endpoint or not base_dir:
-            return ""
+        output_image_file_name = stl_file_path.with_stem(stl_file_path.stem + "_" + self._get_random_string(8)).with_suffix(".png").name
+        image_out_path = Path("img", self.imagekit_subfolder, output_image_file_name)
 
-        if self.imagekit_subfolder is None:
-            self.logger.error("Warning, no imagekit subfolder provided!")
+        # If the stl file contents have been passed, we need to write out the stl file first
+        temp_file = None
+        if stl_file_contents:
+            temp_file = tempfile.NamedTemporaryFile(suffix=".stl")
+            temp_file.write(stl_file_contents)
+            temp_file.flush()
+            stl_in_path: Path = Path(temp_file.name)
+        else:
+            stl_in_path = Path(self.input_dir, stl_file_path)
 
-        image_file_name = stl_file_path.with_stem(stl_file_path.stem + "_" + self.get_random_string(8)).with_suffix(".png").name
-        image_in_path = Path(base_dir, stl_file_path)
-        image_out_path = Path(self.output_dir, "img", self.imagekit_subfolder, image_file_name)
-        image_out_path.parent.mkdir(parents=True, exist_ok=True)
-        cmd = ["stl-thumb", image_in_path.as_posix(), image_out_path.as_posix(), "-a", "fxaa", "-s", "300"]
+        # Generate the thumbnail using stl-thumb
+        # Note: When run entirely headless, stl-thumb will return a non-zero exit code, but still produce the image
+        stl_thumb_result: subprocess.CompletedProcess = subprocess.run(  # noqa: PLW1510
+            f"stl-thumb {stl_in_path.as_posix()} -a fxaa -s {STL_THUMB_IMAGE_SIZE} -",
+            shell=True,  # noqa: S602
+            capture_output=True,
+        )
+        if stl_thumb_result.stdout:
+            self.gh_helper.set_artifact(file_name=image_out_path.as_posix(), file_contents=stl_thumb_result.stdout)
 
-        subprocess.check_output(cmd, stderr=subprocess.DEVNULL, shell=True)  # noqa: S602
-        # Imagekit replaces "[", "]", "(", ")" with underscores
-        image_address: str = re.sub(r"\]|\[|\)|\(", "_", f"{self.imagekit_endpoint}/{self.imagekit_subfolder}/{image_file_name}")
+        if temp_file is not None:
+            temp_file.close()
+
+        # Generate the markdown code for the image
+        image_address: str = re.sub(r"\]|\[|\)|\(", "_", f"{self.imagekit_endpoint}/{self.imagekit_subfolder}/{output_image_file_name}")
         return f'[<img src="{image_address}" width="100" height="100">]({image_address})'
 
     def run(self: Self) -> None:
@@ -78,65 +115,63 @@ class STLRotationChecker:
             self.return_status = max(*return_statuses, self.return_status)
         else:
             self.return_status = ReturnStatus.SUCCESS
-        if self.print_gh_step_summary:
-            with GithubActionHelper.expandable_section(
-                title=f"STL rotation check (errors: {self.error_count})", default_open=self.return_status == ReturnStatus.SUCCESS
-            ):
-                GithubActionHelper.print_summary_table(
-                    columns=["Filename", "Result", "Current orientation", "Suggested orientation"],
+
+        self.gh_helper.postprocess_action(
+            action_result=ActionResult(
+                action_id="rotation_checker",
+                action_name="STL rotation checker",
+                outcome=self.return_status,
+                summary=ActionSummaryTable(
+                    title="STL rotation checker",
+                    columns=["Filename", "Result", "Original orientation", "Suggested orientation"],
                     rows=self.check_summary,
-                )
-
-        GithubActionHelper.write_output(output={"extended-outcome": EXTENDED_OUTCOME[self.return_status]})
-
-        if self.return_status > ReturnStatus.SUCCESS and self.fail_on_error:
-            logger.error("Error detected during STL checking!")
-            sys.exit(255)
+                ),
+            )
+        )
 
     def _write_fixed_stl_file(self: Self, stl: dict[int, Any], opts: Tweak, stl_file_path: Path) -> None:
-        if not self.output_dir:
-            return
-        output_path = Path(self.output_dir, stl_file_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        logger.info("Saving rotated STL to '%s'", output_path)
-        self.file_handler.write_mesh(objects=stl, info={0: {"matrix": opts.matrix, "tweaker_stats": opts}}, outputfile=output_path.as_posix())
+        self.gh_helper.set_artifact(
+            file_name=stl_file_path.as_posix(), file_contents=self._get_rotated_stl_bytes(objects=stl, info={0: {"matrix": opts.matrix, "tweaker_stats": opts}})
+        )
 
     def _check_stl(self: Self, stl_file_path: Path) -> ReturnStatus:
         logger.info("Checking '%s'", stl_file_path.relative_to(self.input_dir).as_posix())
         rotated_image_url: str = ""
         try:
-            mesh_objects: dict[int, Any] = self.file_handler.load_mesh(inputfile=stl_file_path.as_posix())
+            mesh_objects: dict[int, Any] = FileHandler().load_mesh(inputfile=stl_file_path.as_posix())
             if len(mesh_objects.items()) > 1:
                 logger.warning("File '%s' contains multiple objects and is therefore skipped!", stl_file_path.relative_to(self.input_dir).as_posix())
-                self.check_summary.append((stl_file_path.name, SummaryStatus.WARNING, "", ""))
-                self.error_count += 1
+                self.check_summary.append([stl_file_path.name, SummaryStatus.WARNING, "", ""])
                 return ReturnStatus.WARNING
             rotated_mesh: Tweak = Tweak(mesh_objects[0]["mesh"], extended_mode=True, verbose=False, min_volume=True)
-            original_image_url: str = self.make_markdown_image(base_dir=self.input_dir, stl_file_path=stl_file_path.relative_to(self.input_dir))
 
             if rotated_mesh.rotation_angle >= TWEAK_THRESHOLD:
                 logger.warning("Found rotation suggestion for STL '%s'!", stl_file_path.relative_to(self.input_dir).as_posix())
                 output_stl_path: Path = Path(
                     stl_file_path.relative_to(self.input_dir).with_stem(f"{stl_file_path.stem}_rotated"),
                 )
-                self._write_fixed_stl_file(stl=mesh_objects, opts=rotated_mesh, stl_file_path=output_stl_path)
-                rotated_image_url = self.make_markdown_image(base_dir=self.output_dir, stl_file_path=output_stl_path)
+                rotated_stl_bytes: bytes = self._get_rotated_stl_bytes(
+                    objects=mesh_objects, info={0: {"matrix": rotated_mesh.matrix, "tweaker_stats": rotated_mesh}}
+                )
+
+                self.gh_helper.set_artifact(file_name=output_stl_path.as_posix(), file_contents=rotated_stl_bytes)
+
+                original_image_url: str = self._make_markdown_image(stl_file_path=stl_file_path.relative_to(self.input_dir))
+                rotated_image_url: str = self._make_markdown_image(stl_file_path=output_stl_path, stl_file_contents=rotated_stl_bytes)
+
                 self.check_summary.append(
-                    (
+                    [
                         stl_file_path.name,
                         SummaryStatus.WARNING,
                         original_image_url,
                         rotated_image_url,
-                    ),
+                    ],
                 )
-                self.error_count += 1
                 return ReturnStatus.WARNING
-            self.check_summary.append((stl_file_path.name, SummaryStatus.SUCCESS, original_image_url, ""))
             return ReturnStatus.SUCCESS
         except Exception as e:
             logger.exception("A fatal error occurred during rotation checking", exc_info=e)
-            self.check_summary.append((stl_file_path.name, SummaryStatus.EXCEPTION, "", ""))
-            self.error_count += 1
+            self.check_summary.append([stl_file_path.name, SummaryStatus.EXCEPTION, "", ""])
             return ReturnStatus.EXCEPTION
 
 
@@ -166,7 +201,7 @@ def main() -> None:
     )
     parser.add_argument(
         "-u",
-        "--url_endpoint",
+        "--imagekit_endpoint",
         required=False,
         action="store",
         type=str,
@@ -186,11 +221,11 @@ def main() -> None:
     )
     parser.add_argument(
         "-f",
-        "--fail_on_error",
+        "--ignore_warnings",
         required=False,
         action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_FAIL_ON_ERROR",
-        help="Whether to return an error exit code if one of the STLs is faulty",
+        env_var=f"{ENV_VAR_PREFIX}_IGNORE_WARNINGS",
+        help="Whether to ignore warnings and return a success exit code",
         default=False,
     )
     parser.add_argument(

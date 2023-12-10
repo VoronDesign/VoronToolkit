@@ -15,6 +15,7 @@ pyyaml = "^6.0.1"
 gitpython = "^3.1.40"
 requests = "^2.31.0"
 configargparse = "^1.7"
+coloredlogs = "^15.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -56,6 +57,7 @@ module = [
     "tweaker3.*",
     "imagekitio.*",
     "configargparse.*",
+    "coloredlogs.*",
 ]
 ignore_missing_imports = true
 
@@ -67,3 +69,4 @@ check-whitespace = "voron_ci.tools.whitespace_checker:main"
 upload-images = "voron_ci.tools.imagekit_uploader:main"
 generate-readme = "voron_ci.tools.readme_generator:main"
 debug-container = "voron_ci.utils.debug_container:print_container_info"
+sanitize-file-list = "voron_ci.utils.github_action_helper:GithubActionHelper.sanitize_file_list"

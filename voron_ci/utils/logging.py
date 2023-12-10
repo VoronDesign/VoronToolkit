@@ -1,6 +1,10 @@
 import logging
 
+import coloredlogs
+
 
 def init_logging(name: str) -> logging.Logger:
-    logging.basicConfig(format="[%(asctime)s][%(levelname).1s] %(message)s")
-    return logging.getLogger(name)
+    logger = logging.getLogger(name)
+    coloredlogs.install(level="DEBUG", fmt="%(levelname)s %(message)s", logger=logger, isatty=True, reconfigure=True)
+    logger.setLevel("WARNING")
+    return logger

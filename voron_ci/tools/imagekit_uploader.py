@@ -37,7 +37,7 @@ class ImageKitUploader:
             self.imagekit: ImageKit = ImageKit(
                 private_key=args.private_key,
                 public_key=args.public_key,
-                url_endpoint=args.url_endpoint,
+                url_endpoint=args.imagekit_endpoint,
             )
             self.imagekit_options_common: UploadFileRequestOptions = UploadFileRequestOptions(
                 use_unique_file_name=False,
@@ -130,11 +130,11 @@ def main() -> None:
     )
     parser.add_argument(
         "-u",
-        "--url_endpoint",
+        "--imagekit_endpoint",
         required=True,
         action="store",
         type=str,
-        env_var=f"{ENV_VAR_PREFIX}_URL_ENDPOINT",
+        env_var=f"{ENV_VAR_PREFIX}_IMAGEKIT_ENDPOINT",
         help="Imagekit url endpoint (e.g. https://ik.imagekit.io/username)",
     )
     parser.add_argument(

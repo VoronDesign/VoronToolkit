@@ -4,21 +4,75 @@ on:
   workflow_dispatch:
 jobs:
     test_job:
+      env:
+        CORRUPTION_CHECKER_INPUT_DIR: tests/test_repository_root/printer_mods
+        ROTATION_CHECKER_INPUT_DIR: tests/test_repository_root/printer_mods
       runs-on: ubuntu-latest
       steps:
+      # Checkout the entire repo
       - name: Checkout repo
         uses: actions/checkout@v4
       - name: Echo GITHUB_STEP_SUMMARY
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://voron_ci_container:latest
         with:
             args: debug-container
-      - name: LS Repo
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
-        with:
-            args: ls -al /github/workspace
-      - name: Test extra env
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+      # Fake tj-actions/changed-files by creating a list of all files in the test directory
+      - name: Fake tj-actions/changed-files
+        id: list_files
+        run: |
+          export TEST=$(find ./tests/test_repository_root/printer_mods/ -type f -print)
+          echo "FILE_LIST<<EOF" >> $GITHUB_OUTPUT
+          echo "$TEST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      # Sanitize the file list
+      - name: Sanitize file list
+        id: sanitize_file_list
+        uses: docker://voron_ci_container:latest
         env:
-            GITHUB_TOKEN: ${{ github.token }}
+          FILE_LIST_SANITIZE_INPUT: ${{ steps.list_files.outputs.FILE_LIST }}
         with:
-            args: debug-container
+          args: sanitize-file-list
+      # Run whitespace checks based on files in the test directory
+      - name: Whitespace Checker (input_dir)
+        uses: docker://voron_ci_container:latest
+        env:
+          WHITESPACE_CHECKER_INPUT_DIR: tests/test_repository_root/printer_mods
+          WHITESPACE_CHECKER_VERBOSE: true
+          WHITESPACE_CHECKER_IGNORE_WARNINGS: false
+          WHITESPACE_CHECKER_GITHUB_STEP_SUMMARY: false
+          WHITESPACE_CHECKER_OUTPUT_DIR: workflow_output
+        with:
+          args: check-whitespace
+      # Run the corruption checker
+      - name: Corruption Checker
+        uses: docker://voron_ci_container:latest
+        env:
+          CORRUPTION_CHECKER_VERBOSE: true
+          CORRUPTION_CHECKER_IGNORE_WARNINGS: true
+          CORRUPTION_CHECKER_GITHUB_STEP_SUMMARY: false
+          CORRUPTION_CHECKER_OUTPUT_DIR: workflow_output
+        with:
+          args: check-stl-corruption
+      # Run the rotation checker
+      - name: Rotation Checker
+        uses: docker://voron_ci_container:latest
+        env:
+          ROTATION_CHECKER_VERBOSE: true
+          ROTATION_CHECKER_IGNORE_WARNINGS: true
+          ROTATION_CHECKER_GITHUB_STEP_SUMMARY: false
+          ROTATION_CHECKER_OUTPUT_DIR: workflow_output
+          ROTATION_CHECKER_IMAGEKIT_ENDPOINT: ./
+          ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: test_run
+        with:
+          args: check-stl-rotation
+      # Generate a README
+      - name: Generate README
+        uses: docker://voron_ci_container:latest
+        env:
+          README_GENERATOR_INPUT_DIR: tests/test_repository_root/printer_mods
+          README_GENERATOR_README: true
+          README_GENERATOR_VERBOSE: true
+          README_GENERATOR_JSON: true
+          README_GENERATOR_OUTPUT_DIR: workflow_output
+        with:
+          args: generate-readme

@@ -1,80 +1,80 @@
 import os
 import string
 import sys
-from typing import Self
+from pathlib import Path
+from typing import TYPE_CHECKING, Self
 
 import configargparse
 
-from voron_ci.contants import EXTENDED_OUTCOME, ReturnStatus
-from voron_ci.utils.github_action_helper import GithubActionHelper
+from voron_ci.constants import ReturnStatus
+from voron_ci.utils.action_summary import ActionSummaryTable
+from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
 from voron_ci.utils.logging import init_logging
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 logger = init_logging(__name__)
 
-STEP_SUMMARY_PREAMBLE = """
-## Whitespace check errors
-
-"""
+ENV_VAR_PREFIX = "WHITESPACE_CHECKER"
 
 
 class WhitespaceChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
-        self.input_env_var: str = args.input_env_var
-        self.verbosity: bool = args.verbose
-        self.fail_on_error: bool = args.fail_on_error
-        self.print_gh_step_summary: bool = args.github_step_summary
         self.return_status: ReturnStatus = ReturnStatus.SUCCESS
-        self.check_summary: list[tuple[str, ...]] = []
-        self.error_count: int = 0
+        self.check_summary: list[list[str]] = []
+        self.gh_helper: GithubActionHelper = GithubActionHelper(
+            output_path=args.output_dir, do_gh_step_summary=args.github_step_summary, ignore_warnings=args.ignore_warnings
+        )
+
+        if args.verbose:
+            logger.setLevel("INFO")
+
+        if (args.input_dir and args.input_env_var) or (not args.input_dir and not args.input_env_var):
+            logger.error(
+                "Please provide either '--input_dir' (env: WHITESPACE_CHECKER_INPUT_DIR) or '--input_env_var' (env: WHITESPACE_CHECKER_ENV_VAR), not both!"
+            )
+            sys.exit(255)
+
+        if args.input_dir:
+            logger.info("Using input_dir '%s'", args.input_dir)
+            input_path: Path = Path(Path.cwd(), args.input_dir)
+            input_path_files: Iterator[Path] = Path(Path.cwd(), args.input_dir).glob("**/*")
+            files = [x for x in input_path_files if x.is_file()]
+            self.input_file_list: list[str] = [file_path.relative_to(input_path).as_posix() for file_path in files]
+        else:
+            logger.info("Using input_env_var '%s'", args.input_env_var)
+            self.input_file_list = os.environ.get(args.input_env_var, "").splitlines()
 
     def _check_for_whitespace(self: Self) -> None:
-        input_file_list = os.environ.get(self.input_env_var, "").splitlines()
-
-        for input_file in input_file_list:
+        for input_file in self.input_file_list:
             if not input_file:
                 continue
-            logger.info("Checking file '%s' for whitespace!", input_file)
+            logger.info("Checking file '%s' ...", input_file)
             for c in input_file:
                 if c in string.whitespace:
                     logger.error("File '%s' contains whitespace!", input_file)
-                    self.check_summary.append((input_file, "This file contains whitespace!"))
-                    self.error_count += 1
+                    self.check_summary.append([input_file, "This file contains whitespace!"])
                     self.return_status = ReturnStatus.FAILURE
                     break
 
-    def _write_sanitized_output(self: Self) -> None:
-        input_file_list = os.environ.get(self.input_env_var, "").splitlines()
-
-        output_file_list: list[str] = [input_file.replace("[", "\\[").replace("]", "\\]") for input_file in input_file_list]
-
-        GithubActionHelper.write_output_multiline(output={"FILE_LIST_SANITIZED": output_file_list})
-
     def run(self: Self) -> None:
-        if self.verbosity:
-            logger.setLevel("INFO")
-
-        logger.info("Starting files check from env var '%s'", self.input_env_var)
+        logger.info("Starting whitespace check ...")
 
         self._check_for_whitespace()
-        self._write_sanitized_output()
 
-        if self.print_gh_step_summary:
-            with GithubActionHelper.expandable_section(
-                title=f"Whitespace checks (errors: {self.error_count})", default_open=self.return_status != ReturnStatus.SUCCESS
-            ):
-                GithubActionHelper.print_summary_table(
-                    columns=[
-                        "File/Folder",
-                        "Reason",
-                    ],
+        self.gh_helper.postprocess_action(
+            action_result=ActionResult(
+                action_id="whitespace_check",
+                action_name="Whitespace check",
+                outcome=self.return_status,
+                summary=ActionSummaryTable(
+                    title="Whitespace check",
+                    columns=["File/Folder", "Reason"],
                     rows=self.check_summary,
-                )
-
-        GithubActionHelper.write_output(output={"extended-outcome": EXTENDED_OUTCOME[self.return_status]})
-
-        if self.return_status > ReturnStatus.SUCCESS and self.fail_on_error:
-            logger.error("Error detected during whitespace checking!")
-            sys.exit(255)
+                ),
+            )
+        )
 
 
 def main() -> None:
@@ -84,10 +84,31 @@ def main() -> None:
     )
     parser.add_argument(
         "-i",
-        "--input_env_var",
-        required=True,
+        "--input_dir",
+        required=False,
         action="store",
         type=str,
+        env_var=f"{ENV_VAR_PREFIX}_INPUT_DIR",
+        help="Directory containing files to be checked",
+        default="",
+    )
+    parser.add_argument(
+        "-o",
+        "--output_dir",
+        required=False,
+        action="store",
+        type=str,
+        env_var=f"{ENV_VAR_PREFIX}_OUTPUT_DIR",
+        help="Output directory",
+        default="",
+    )
+    parser.add_argument(
+        "-e",
+        "--input_env_var",
+        required=False,
+        action="store",
+        type=str,
+        env_var=f"{ENV_VAR_PREFIX}_INPUT_ENV_VAR",
         help="Environment variable name containing a newline separated list of files to be checked",
     )
     parser.add_argument(
@@ -95,15 +116,17 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )
     parser.add_argument(
         "-f",
-        "--fail_on_error",
+        "--ignore_warnings",
         required=False,
         action="store_true",
-        help="Whether to return an error exit code if one of the files contains whitespace",
+        env_var=f"{ENV_VAR_PREFIX}_IGNORE_WARNINGS",
+        help="Whether to ignore warnings and return a success exit code",
         default=False,
     )
     parser.add_argument(
@@ -111,6 +134,7 @@ def main() -> None:
         "--github_step_summary",
         required=False,
         action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_GITHUB_STEP_SUMMARY",
         help="Whether to output a step summary when running inside a github action",
         default=False,
     )

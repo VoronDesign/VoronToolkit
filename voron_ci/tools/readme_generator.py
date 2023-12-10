@@ -6,7 +6,9 @@ from typing import Any, Self
 import configargparse
 import yaml
 
-from voron_ci.utils.github_action_helper import GithubActionHelper
+from voron_ci.constants import ReturnStatus
+from voron_ci.utils.action_summary import ActionSummaryTable
+from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
 from voron_ci.utils.logging import init_logging
 
 logger = init_logging(__name__)
@@ -31,16 +33,15 @@ ENV_VAR_PREFIX = "README_GENERATOR"
 class ReadmeGenerator:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
-        self.json_path: str = args.json_path
-        self.readme_path: str = args.readme_path
+        self.json: bool = args.json
+        self.readme: bool = args.readme
+        self.gh_helper: GithubActionHelper = GithubActionHelper(output_path=args.output_dir, do_gh_step_summary=args.github_step_summary, ignore_warnings=False)
 
         if args.verbose:
             logger.setLevel("INFO")
 
     def run(self: Self) -> None:
-        logger.info(
-            "ReadmeGenerator starting up with readme_path: '%s', json_path: '%s', input_dir: '%s'", self.readme_path, self.json_path, self.input_dir.as_posix()
-        )
+        logger.info("ReadmeGenerator starting up readme: '%s', json: '%s', input_dir: '%s'", self.readme, self.json, self.input_dir.as_posix())
         yaml_list = Path(self.input_dir).glob("**/.metadata.yml")
         mods: list[dict[str, Any]] = []
         for yml_file in sorted(yaml_list):
@@ -58,36 +59,47 @@ class ReadmeGenerator:
                     }
                 )
 
-        readme_rows: list[tuple[str, ...]] = []
+        readme_rows: list[list[str]] = []
         prev_username: str = ""
         logger.info("Generating rows for %d mods", len(mods))
         for mod in mods:
             readme_rows.append(
-                (
+                [
                     mod["creator"] if mod["creator"] != prev_username else "",
                     f'[{textwrap.shorten(mod["title"], width=35, placeholder="...")}]({mod["path"]})',
                     textwrap.shorten(mod["description"], width=70, placeholder="..."),
                     mod["printer_compatibility"],
                     mod["last_changed"],
-                )
+                ]
             )
             prev_username = mod["creator"]
-        with GithubActionHelper.expandable_section(title="README.md preview", default_open=True):
-            GithubActionHelper.print_summary_table(columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"], rows=readme_rows)
 
-        if self.json_path:
-            logger.info("Writing json file to '%s'", self.json_path)
-            with Path(self.json_path).open("w", encoding="utf-8") as f:
-                json.dump(mods, f, indent=4)
+        if self.json:
+            logger.info("Writing json file!")
+            self.gh_helper.set_artifact(file_name="mods.json", file_contents=json.dumps(mods, indent=4))
 
-        if self.readme_path:
-            logger.info("Writing README file to '%s'", self.readme_path)
-            with Path(self.readme_path).open("w", encoding="utf-8") as f:
-                f.write(
-                    GithubActionHelper.create_markdown_table(
-                        preamble=PREAMBLE, columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"], rows=readme_rows
-                    )
-                )
+        if self.readme:
+            logger.info("Writing README file!")
+            self.gh_helper.set_artifact(
+                file_name="README.md",
+                file_contents=f"{PREAMBLE}\n\n"
+                + ActionSummaryTable.create_markdown_table(
+                    columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"], rows=readme_rows
+                ),
+            )
+
+        self.gh_helper.postprocess_action(
+            action_result=ActionResult(
+                action_id="readme_generator",
+                action_name="Readme generator",
+                outcome=ReturnStatus.SUCCESS,
+                summary=ActionSummaryTable(
+                    title="Readme preview",
+                    columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"],
+                    rows=readme_rows,
+                ),
+            )
+        )
 
 
 def main() -> None:
@@ -105,24 +117,41 @@ def main() -> None:
         help="Base directory to search for metadata files",
     )
     parser.add_argument(
-        "-r",
-        "--readme_path",
+        "-o",
+        "--output_dir",
         required=False,
         action="store",
         type=str,
-        env_var=f"{ENV_VAR_PREFIX}_README_PATH",
-        help="Readme output path (leave empty to not generate a Readme file)",
+        env_var=f"{ENV_VAR_PREFIX}_OUTPUT_DIR",
+        help="Directory to store the fixed STL files into",
         default="",
     )
     parser.add_argument(
-        "-j",
-        "--json_path",
+        "-g",
+        "--github_step_summary",
         required=False,
-        action="store",
-        type=str,
-        env_var=f"{ENV_VAR_PREFIX}_JSON_PATH",
-        help="Json output path (leave empty to not generate a json file)",
-        default="",
+        action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_GITHUB_STEP_SUMMARY",
+        help="Whether to output a step summary when running inside a github action",
+        default=False,
+    )
+    parser.add_argument(
+        "-r",
+        "--readme",
+        required=False,
+        action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_README",
+        help="Whether to generate a readme file",
+        default=False,
+    )
+    parser.add_argument(
+        "-j",
+        "--json",
+        required=False,
+        action="store_true",
+        env_var=f"{ENV_VAR_PREFIX}_JSON",
+        help="Whether to generate a json file",
+        default=False,
     )
     parser.add_argument(
         "-v",

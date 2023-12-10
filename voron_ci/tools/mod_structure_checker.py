@@ -1,4 +1,3 @@
-import sys
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Self
@@ -6,9 +5,10 @@ from typing import Any, Self
 import configargparse
 import yaml
 
-from voron_ci.contants import EXTENDED_OUTCOME, ReturnStatus
+from voron_ci.constants import ReturnStatus
+from voron_ci.utils.action_summary import ActionSummaryTable
 from voron_ci.utils.file_helper import FileHelper
-from voron_ci.utils.github_action_helper import GithubActionHelper
+from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
 from voron_ci.utils.logging import init_logging
 
 logger = init_logging(__name__)
@@ -28,25 +28,24 @@ ENV_VAR_PREFIX = "MOD_STRUCTURE_CHECKER"
 class ModStructureChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
-        self.fail_on_error: bool = args.fail_on_error
-        self.print_gh_step_summary: bool = args.github_step_summary
+        self.gh_helper: GithubActionHelper = GithubActionHelper(
+            output_path=None, do_gh_step_summary=args.github_step_summary, ignore_warnings=args.fail_on_error
+        )
         self.return_status: ReturnStatus = ReturnStatus.SUCCESS
-        self.check_summary: list[tuple[str, ...]] = []
-
-        self.errors: dict[Path, str] = {}
+        self.check_summary: list[list[str]] = []
 
         if args.verbose:
             logger.setLevel("INFO")
 
-    def _check_mods(self: Self, input_dir: Path) -> None:
-        mod_folders = [folder for folder in input_dir.glob("*/*") if folder.is_dir() and folder.relative_to(input_dir).as_posix() not in IGNORE_FILES]
+    def _check_mods(self: Self) -> None:
+        mod_folders = [folder for folder in self.input_dir.glob("*/*") if folder.is_dir() and folder.relative_to(self.input_dir).as_posix() not in IGNORE_FILES]
 
         logger.info("Performing mod file check")
         for mod_folder in mod_folders:
             logger.info("Checking folder '%s'", mod_folder.relative_to(self.input_dir).as_posix())
             if not Path(mod_folder, ".metadata.yml").exists():
                 logger.warning("Mod '%s' is missing a metadata file!", mod_folder)
-                self.errors[mod_folder] = FileErrors.mod_missing_metadata.value.format(mod_folder)
+                self.check_summary.append([mod_folder.relative_to(self.input_dir).as_posix(), FileErrors.mod_missing_metadata.value.format(mod_folder)])
                 self.return_status = ReturnStatus.FAILURE
                 continue
 
@@ -59,41 +58,35 @@ class ModStructureChecker:
                 for file in files:
                     if not Path(mod_folder, file).exists():
                         logger.warning("File '%s' is missing in mod folder '%s'!", file, mod_folder)
-                        self.errors[Path(mod_folder, file)] = FileErrors.file_from_metadata_missing.value.format(file)
+                        self.check_summary.append([mod_folder.relative_to(self.input_dir).as_posix(), FileErrors.file_from_metadata_missing.value.format(file)])
                         self.return_status = ReturnStatus.FAILURE
 
-    def _check_shallow_files(self: Self, input_dir: Path) -> None:
+    def _check_shallow_files(self: Self) -> None:
         logger.info("Performing shallow file check")
-        files_folders = FileHelper.get_shallow_folders(input_dir=input_dir, max_depth=MOD_DEPTH - 1, ignore=IGNORE_FILES)
+        files_folders = FileHelper.get_shallow_folders(input_dir=self.input_dir, max_depth=MOD_DEPTH - 1, ignore=IGNORE_FILES)
         for file_folder in files_folders:
             logger.warning("File '%s' outside mod folder structure!", file_folder)
-            self.errors[file_folder] = FileErrors.file_outside_mod_folder.value.format(file_folder)
+            self.check_summary.append([file_folder.relative_to(self.input_dir).as_posix(), FileErrors.file_outside_mod_folder.value.format(file_folder)])
             self.return_status = ReturnStatus.FAILURE
 
     def run(self: Self) -> None:
         logger.info("Starting files check in '%s'", str(self.input_dir))
 
-        self._check_shallow_files(input_dir=self.input_dir)
-        self._check_mods(input_dir=self.input_dir)
+        self._check_shallow_files()
+        self._check_mods()
 
-        if self.print_gh_step_summary:
-            self.check_summary = [(path.relative_to(self.input_dir).as_posix(), reason) for path, reason in self.errors.items()]
-            with GithubActionHelper.expandable_section(
-                title=f"Mod structure check (errors: {len(self.errors)})", default_open=self.return_status == ReturnStatus.SUCCESS
-            ):
-                GithubActionHelper.print_summary_table(
-                    columns=[
-                        "File/Folder",
-                        "Reason",
-                    ],
+        self.gh_helper.postprocess_action(
+            action_result=ActionResult(
+                action_id="mod_structure_checker",
+                action_name="Mod structure checker",
+                outcome=self.return_status,
+                summary=ActionSummaryTable(
+                    title="Mod structure checker",
+                    columns=["File/Folder", "Reason"],
                     rows=self.check_summary,
-                )
-
-        GithubActionHelper.write_output(output={"extended-outcome": EXTENDED_OUTCOME[self.return_status]})
-
-        if self.return_status > ReturnStatus.SUCCESS and self.fail_on_error:
-            logger.error("Error detected during file/folder checking!")
-            sys.exit(255)
+                ),
+            )
+        )
 
 
 def main() -> None:
@@ -121,10 +114,10 @@ def main() -> None:
     )
     parser.add_argument(
         "-f",
-        "--fail_on_error",
+        "--ignore_warnings",
         required=False,
         action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_FAIL_ON_ERROR",
+        env_var=f"{ENV_VAR_PREFIX}_IGNORE_WARNINGS",
         help="Whether to return an error exit code if one of the STLs is faulty",
         default=False,
     )
