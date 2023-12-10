@@ -34,32 +34,32 @@ jobs:
           args: sanitize-file-list
       # Run whitespace checks based on files in the test directory
       - name: Whitespace Checker (input_dir)
-        uses: docker://voron_ci_container:latest
+        uses: docker://ghcr.io/FHeilmann/voron_ci_container:latest
         env:
           WHITESPACE_CHECKER_INPUT_DIR: tests/test_repository_root/printer_mods
           WHITESPACE_CHECKER_VERBOSE: true
           WHITESPACE_CHECKER_IGNORE_WARNINGS: false
-          WHITESPACE_CHECKER_GITHUB_STEP_SUMMARY: false
+          WHITESPACE_CHECKER_GITHUB_STEP_SUMMARY: true
           WHITESPACE_CHECKER_OUTPUT_DIR: workflow_output
         with:
           args: check-whitespace
       # Run the corruption checker
       - name: Corruption Checker
-        uses: docker://voron_ci_container:latest
+        uses: docker://ghcr.io/FHeilmann/voron_ci_container:latest
         env:
           CORRUPTION_CHECKER_VERBOSE: true
           CORRUPTION_CHECKER_IGNORE_WARNINGS: true
-          CORRUPTION_CHECKER_GITHUB_STEP_SUMMARY: false
+          CORRUPTION_CHECKER_GITHUB_STEP_SUMMARY: true
           CORRUPTION_CHECKER_OUTPUT_DIR: workflow_output
         with:
           args: check-stl-corruption
       # Run the rotation checker
       - name: Rotation Checker
-        uses: docker://voron_ci_container:latest
+        uses: docker://ghcr.io/FHeilmann/voron_ci_container:latest
         env:
           ROTATION_CHECKER_VERBOSE: true
           ROTATION_CHECKER_IGNORE_WARNINGS: true
-          ROTATION_CHECKER_GITHUB_STEP_SUMMARY: false
+          ROTATION_CHECKER_GITHUB_STEP_SUMMARY: true
           ROTATION_CHECKER_OUTPUT_DIR: workflow_output
           ROTATION_CHECKER_IMAGEKIT_ENDPOINT: ./
           ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: test_run
@@ -67,12 +67,18 @@ jobs:
           args: check-stl-rotation
       # Generate a README
       - name: Generate README
-        uses: docker://voron_ci_container:latest
+        uses: docker://ghcr.io/FHeilmann/voron_ci_container:latest
         env:
           README_GENERATOR_INPUT_DIR: tests/test_repository_root/printer_mods
           README_GENERATOR_README: true
           README_GENERATOR_VERBOSE: true
           README_GENERATOR_JSON: true
+          README_GENERATOR_GITHUB_STEP_SUMMARY: true
           README_GENERATOR_OUTPUT_DIR: workflow_output
         with:
           args: generate-readme
+      # Upload Artifact
+      - uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
+        with:
+          name: ci_output
+          path: workflow_output
