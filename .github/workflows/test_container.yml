@@ -12,10 +12,6 @@ jobs:
       # Checkout the entire repo
       - name: Checkout repo
         uses: actions/checkout@v4
-      - name: Echo GITHUB_STEP_SUMMARY
-        uses: docker://voron_ci_container:latest
-        with:
-            args: debug-container
       # Fake tj-actions/changed-files by creating a list of all files in the test directory
       - name: Fake tj-actions/changed-files
         id: list_files
