@@ -27,7 +27,7 @@ jobs:
       # Sanitize the file list
       - name: Sanitize file list
         id: sanitize_file_list
-        uses: docker://voron_ci_container:latest
+        uses: docker://ghcr.io/FHeilmann/voron_ci_container:latest
         env:
           FILE_LIST_SANITIZE_INPUT: ${{ steps.list_files.outputs.FILE_LIST }}
         with:
