@@ -28,9 +28,7 @@ ENV_VAR_PREFIX = "MOD_STRUCTURE_CHECKER"
 class ModStructureChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
-        self.gh_helper: GithubActionHelper = GithubActionHelper(
-            output_path=None, do_gh_step_summary=args.github_step_summary, ignore_warnings=args.fail_on_error
-        )
+        self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
         self.return_status: ReturnStatus = ReturnStatus.SUCCESS
         self.check_summary: list[list[str]] = []
 
@@ -101,7 +99,7 @@ def main() -> None:
         action="store",
         type=str,
         env_var=f"{ENV_VAR_PREFIX}_INPUT_DIR",
-        help="Directory containing STL files to be checked",
+        help="Directory containing Mods to be checked",
     )
     parser.add_argument(
         "-v",
@@ -118,16 +116,7 @@ def main() -> None:
         required=False,
         action="store_true",
         env_var=f"{ENV_VAR_PREFIX}_IGNORE_WARNINGS",
-        help="Whether to return an error exit code if one of the STLs is faulty",
-        default=False,
-    )
-    parser.add_argument(
-        "-g",
-        "--github_step_summary",
-        required=False,
-        action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_GITHUB_STEP_SUMMARY",
-        help="Whether to output a step summary when running inside a github action",
+        help="Whether to return an error exit code if bad files or badly structured mods are found",
         default=False,
     )
     args: configargparse.Namespace = parser.parse_args()

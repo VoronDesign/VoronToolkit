@@ -17,6 +17,8 @@ from voron_ci.utils.action_summary import ActionSummary
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
 OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
+VORON_CI_OUTPUT_ENV_VAR = "VORON_CI_OUTPUT"
+VORON_CI_STEP_SUMMARY_ENV_VAR = "VORON_CI_STEP_SUMMARY"
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +32,13 @@ class ActionResult:
 
 
 class GithubActionHelper:
-    def __init__(self: Self, *, output_path: Path | str | None = None, do_gh_step_summary: bool = False, ignore_warnings: bool = False) -> None:
-        self.output_path: Path | None = Path(output_path) if output_path else None
+    def __init__(self: Self, *, ignore_warnings: bool = False) -> None:
+        output_path_var: str | None = os.environ.get(VORON_CI_OUTPUT_ENV_VAR, None)
+        github_step_summary: str | None = os.environ.get(VORON_CI_STEP_SUMMARY_ENV_VAR, "False")
+        self.output_path: Path | None = Path(output_path_var) if output_path_var else None
         self.artifacts: dict[str, str | bytes] = {}
         self.github_output: StringIO = StringIO()
-        self.do_gh_step_summary: bool = do_gh_step_summary
+        self.do_gh_step_summary: bool = bool(github_step_summary)
         self.ignore_warnings: bool = ignore_warnings
 
     def set_output(self: Self, output: dict[str, str]) -> None:

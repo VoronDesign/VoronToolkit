@@ -33,9 +33,7 @@ class STLRotationChecker:
         self.imagekit_subfolder: str = args.imagekit_subfolder
         self.return_status: ReturnStatus = ReturnStatus.SUCCESS
         self.check_summary: list[list[str]] = []
-        self.gh_helper: GithubActionHelper = GithubActionHelper(
-            output_path=args.output_dir, do_gh_step_summary=args.github_step_summary, ignore_warnings=args.ignore_warnings
-        )
+        self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
 
         if args.verbose:
             logger.setLevel("INFO")
@@ -189,16 +187,6 @@ def main() -> None:
         help="Directory containing STL files to be checked",
     )
     parser.add_argument(
-        "-o",
-        "--output_dir",
-        required=False,
-        action="store",
-        type=str,
-        env_var=f"{ENV_VAR_PREFIX}_OUTPUT_DIR",
-        help="Directory to store the fixed STL files into",
-        default="",
-    )
-    parser.add_argument(
         "-u",
         "--imagekit_endpoint",
         required=False,
@@ -234,15 +222,6 @@ def main() -> None:
         action="store_true",
         env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
         help="Print debug output to stdout",
-        default=False,
-    )
-    parser.add_argument(
-        "-g",
-        "--github_step_summary",
-        required=False,
-        action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_GITHUB_STEP_SUMMARY",
-        help="Whether to output a step summary when running inside a github action",
         default=False,
     )
     args: configargparse.Namespace = parser.parse_args()

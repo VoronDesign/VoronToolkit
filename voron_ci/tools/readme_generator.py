@@ -35,7 +35,7 @@ class ReadmeGenerator:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.json: bool = args.json
         self.readme: bool = args.readme
-        self.gh_helper: GithubActionHelper = GithubActionHelper(output_path=args.output_dir, do_gh_step_summary=args.github_step_summary, ignore_warnings=False)
+        self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=False)
 
         if args.verbose:
             logger.setLevel("INFO")
@@ -115,25 +115,6 @@ def main() -> None:
         type=str,
         env_var=f"{ENV_VAR_PREFIX}_INPUT_DIR",
         help="Base directory to search for metadata files",
-    )
-    parser.add_argument(
-        "-o",
-        "--output_dir",
-        required=False,
-        action="store",
-        type=str,
-        env_var=f"{ENV_VAR_PREFIX}_OUTPUT_DIR",
-        help="Directory to store the fixed STL files into",
-        default="",
-    )
-    parser.add_argument(
-        "-g",
-        "--github_step_summary",
-        required=False,
-        action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_GITHUB_STEP_SUMMARY",
-        help="Whether to output a step summary when running inside a github action",
-        default=False,
     )
     parser.add_argument(
         "-r",
