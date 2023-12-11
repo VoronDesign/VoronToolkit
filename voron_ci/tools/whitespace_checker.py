@@ -61,7 +61,7 @@ class WhitespaceChecker:
 
         self._check_for_whitespace()
 
-        self.gh_helper.postprocess_action(
+        self.gh_helper.finalize_action(
             action_result=ActionResult(
                 action_id="whitespace_check",
                 action_name="Whitespace check",

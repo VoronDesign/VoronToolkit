@@ -17,8 +17,9 @@ class ActionSummaryTable(ActionSummary):
 
     def to_markdown(self: Self) -> str:
         return (
+            f"## {self.title}\n\n"
             f"<details{' open' if self.rows else ''}>\n"
-            f"<summary>{self.title} (items: {len(self.rows)})</summary>\n\n"
+            f"<summary>Result (items: {len(self.rows)})</summary>\n\n"
             f"{self.create_markdown_table(self.columns, self.rows)}\n"
             f"</details>\n"
         )

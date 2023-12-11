@@ -114,7 +114,7 @@ class STLRotationChecker:
         else:
             self.return_status = ReturnStatus.SUCCESS
 
-        self.gh_helper.postprocess_action(
+        self.gh_helper.finalize_action(
             action_result=ActionResult(
                 action_id="rotation_checker",
                 action_name="STL rotation checker",

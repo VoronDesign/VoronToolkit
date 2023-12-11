@@ -21,6 +21,8 @@ logger = init_logging(__name__)
 
 ENV_VAR_PREFIX = "IMAGEKIT_UPLOADER"
 
+IMAGE_SUBDIRECTORY = "rotation_checker/img"
+
 
 class ImageKitUploader:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
@@ -29,6 +31,7 @@ class ImageKitUploader:
         self.fail_on_error: bool = args.fail_on_error
         self.github_repository: str = args.github_repository
         self.tmp_path: Path = Path()
+        self.image_base_path: Path = Path()
 
         if args.verbose:
             logger.setLevel("INFO")
@@ -56,7 +59,7 @@ class ImageKitUploader:
     def upload_image(self: Self, image_path: Path) -> bool:
         with Path(image_path).open(mode="rb") as image:
             imagekit_options: UploadFileRequestOptions = self.imagekit_options_common
-            imagekit_options.folder = image_path.parent.relative_to(Path(self.tmp_path)).as_posix()
+            imagekit_options.folder = image_path.parent.relative_to(Path(self.image_base_path)).as_posix()
             result: UploadFileResult = self.imagekit.upload_file(file=image, file_name=image_path.name, options=imagekit_options)
             return result.url != ""
 
@@ -64,20 +67,22 @@ class ImageKitUploader:
         logger.info("Downloading artifact '%s' from workflow '%s'", self.artifact_name, self.workflow_run_id)
         with tempfile.TemporaryDirectory() as tmpdir:
             logger.info("Created temporary directory '%s'", tmpdir)
-            self.tmp_path = Path(tmpdir)
+            tmp_path = Path(tmpdir)
 
             GithubActionHelper.download_artifact(
                 repo=self.github_repository,
                 workflow_run_id=self.workflow_run_id,
                 artifact_name=self.artifact_name,
-                target_directory=self.tmp_path,
+                target_directory=tmp_path,
             )
 
-            logger.info("Processing Image files in %s", self.tmp_path.as_posix())
+            self.image_base_path = Path(tmp_path, IMAGE_SUBDIRECTORY)
 
-            images: list[Path] = list(self.tmp_path.glob("**/*.png"))
+            logger.info("Processing Image files in %s", tmp_path.as_posix())
+
+            images: list[Path] = list(self.image_base_path.glob("**/*.png"))
             if not images:
-                logger.warning("No images found in input_dir %s!", self.tmp_path.as_posix())
+                logger.warning("No images found in input_dir %s!", self.image_base_path.as_posix())
                 return
             with ThreadPoolExecutor() as pool:
                 results: Iterator[bool] = pool.map(self.upload_image, images)

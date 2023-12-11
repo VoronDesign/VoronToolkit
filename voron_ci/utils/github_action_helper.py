@@ -19,6 +19,7 @@ STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
 OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
 VORON_CI_OUTPUT_ENV_VAR = "VORON_CI_OUTPUT"
 VORON_CI_STEP_SUMMARY_ENV_VAR = "VORON_CI_STEP_SUMMARY"
+VORON_CI_GITHUB_TOKEN_ENV_VAR = "VORON_CI_GITHUB_TOKEN"  # noqa: S105
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class GithubActionHelper:
             with Path(self.output_path, action_result.action_id, "outcome.txt").open("w") as f:
                 f.write(str(action_result.outcome))
 
-    def postprocess_action(self: Self, action_result: ActionResult) -> None:
+    def finalize_action(self: Self, action_result: ActionResult) -> None:
         self.set_output(output={"extended-outcome": EXTENDED_OUTCOME[action_result.outcome]})
         self._write_outputs()
         self._write_step_summary(action_result=action_result)
@@ -95,22 +96,25 @@ class GithubActionHelper:
         github_api_url = f"https://api.github.com/repos/{github_repository}/actions/runs/{github_run_id}/jobs"
 
         headers = {
-            "Authorization": f"token {os.environ['INPUT_GITHUB_TOKEN']}",
+            "Authorization": f"token {os.environ['VORON_CI_GITHUB_TOKEN']}",
             "Accept": "application/vnd.github.v3+json",
+            "X-GitHub-Api-Version": "2022-11-28",
         }
 
-        response = requests.get(github_api_url, headers=headers, timeout=10)
-
-        if response.status_code < HTTPStatus.MULTIPLE_CHOICES:
-            data = response.json()
-            matching_jobs = [job for job in data["jobs"] if job["name"] == job_name]
-
-            if matching_jobs:
-                job = matching_jobs[0]
-                return job["id"]
-            logger.warning("No job found with name '%s'", job_name)
+        try:
+            response = requests.get(github_api_url, headers=headers, timeout=10)
+            response.raise_for_status()
+        except requests.HTTPError:
+            logger.exception("Failed to retrieve jobs. Status code: %d", response.status_code)
             return ""
-        logger.warning("Failed to retrieve jobs. Status code: %d", response.status_code)
+
+        data = response.json()
+        matching_jobs = [job for job in data["jobs"] if job["name"] == job_name]
+
+        if matching_jobs:
+            job = matching_jobs[0]
+            return job["id"]
+        logger.warning("No job found with name '%s'", job_name)
         return ""
 
     @classmethod
@@ -131,11 +135,18 @@ class GithubActionHelper:
     def download_artifact(cls: type[Self], repo: str, workflow_run_id: str, artifact_name: str, target_directory: Path) -> None:
         # GitHub API endpoint to get the artifact information
         api_url = f"https://api.github.com/repos/{repo}/actions/runs/{workflow_run_id}/artifacts"
+        headers: dict[str, str] = {
+            "Authorization": f"token {os.environ['VORON_CI_GITHUB_TOKEN']}",
+            "Accept": "application/vnd.github.v3+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
 
         # Make a GET request to fetch artifact details
-        response = requests.get(api_url, timeout=20)
-        if response.status_code >= HTTPStatus.MULTIPLE_CHOICES:
-            logger.error("Failed to fetch artifacts. Status code: %d", response.status_code)
+        try:
+            response = requests.get(api_url, headers=headers, timeout=20)
+            response.raise_for_status()
+        except requests.HTTPError:
+            logger.exception("Failed to fetch artifacts. Status code: %d", response.status_code)
             return
 
         artifacts = response.json().get("artifacts", [])
@@ -153,8 +164,17 @@ class GithubActionHelper:
 
         # Download artifact zip file
         download_url = f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact_id}/zip"
-        headers = {"Accept": "application/vnd.github.v3+json"}
-        download_response = requests.get(download_url, headers=headers, timeout=20)
+        headers: dict[str, str] = {
+            "Authorization": f"token {os.environ['VORON_CI_GITHUB_TOKEN']}",
+            "Accept": "application/vnd.github.v3+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        try:
+            download_response = requests.get(download_url, headers=headers, timeout=20)
+            download_response.raise_for_status()
+        except requests.HTTPError:
+            logger.exception("Failed to download artifact '%s'", artifact_name)
+            return
 
         if download_response.status_code >= HTTPStatus.MULTIPLE_CHOICES:
             logger.error("Failed to download artifact '%s'. Status code: %d", artifact_name, download_response.status_code)
@@ -178,9 +198,9 @@ class GithubActionHelper:
     def set_labels_on_pull_request(cls: type[Self], repo: str, pull_request_number: int, labels: list[str]) -> None:
         api_url: str = f"https://api.github.com/repos/{repo}/issues/{pull_request_number}/labels"
         headers: dict[str, str] = {
+            "Authorization": f"token {os.environ['VORON_CI_GITHUB_TOKEN']}",
             "Accept": "application/vnd.github.v3+json",
             "X-GitHub-Api-Version": "2022-11-28",
-            "Authorization": f"Bearer {os.environ['INPUT_GITHUB_TOKEN']}",
         }
         try:
             response: requests.Response = requests.put(api_url, headers=headers, json={"labels": labels}, timeout=10)

@@ -88,7 +88,7 @@ class ReadmeGenerator:
                 ),
             )
 
-        self.gh_helper.postprocess_action(
+        self.gh_helper.finalize_action(
             action_result=ActionResult(
                 action_id="readme_generator",
                 action_name="Readme generator",

@@ -73,7 +73,7 @@ class ModStructureChecker:
         self._check_shallow_files()
         self._check_mods()
 
-        self.gh_helper.postprocess_action(
+        self.gh_helper.finalize_action(
             action_result=ActionResult(
                 action_id="mod_structure_checker",
                 action_name="Mod structure checker",
