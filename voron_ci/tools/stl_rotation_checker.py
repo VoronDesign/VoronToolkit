@@ -165,8 +165,8 @@ class STLRotationChecker:
 
             logger.success("File '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
             return ReturnStatus.SUCCESS
-        except Exception as e:  # noqa: BLE001
-            logger.exception("A fatal error occurred during rotation checking", exc_info=e)
+        except Exception:  # noqa: BLE001
+            logger.critical("A fatal error occurred while checking {}", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append([stl_file_path.name, SummaryStatus.EXCEPTION, "", ""])
             return ReturnStatus.EXCEPTION
 

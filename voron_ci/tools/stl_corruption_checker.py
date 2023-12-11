@@ -39,11 +39,11 @@ class STLCorruptionChecker:
 
         self.gh_helper.finalize_action(
             action_result=ActionResult(
-                action_id="stl_corruption_checker",
-                action_name="STL Corruption Checker",
+                action_id="corruption_checker",
+                action_name="STL corruption checker",
                 outcome=self.return_status,
                 summary=ActionSummaryTable(
-                    title="STL Corruption Checker",
+                    title="STL corruption checker",
                     columns=["Filename", "Result", "Edges Fixed", "Backwards Edges", "Degenerate Facets", "Facets Removed", "Facets Added", "Facets Reversed"],
                     rows=self.check_summary,
                 ),
@@ -88,7 +88,7 @@ class STLCorruptionChecker:
             logger.success("STL '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
             return ReturnStatus.SUCCESS
         except Exception:  # noqa: BLE001
-            logger.exception("A fatal error occurred while checking '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
+            logger.critical("A fatal error occurred while checking '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
                 [stl_file_path.name, SummaryStatus.EXCEPTION, "0", "0", "0", "0", "0", "0"],
             )

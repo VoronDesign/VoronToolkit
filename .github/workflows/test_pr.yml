@@ -85,6 +85,7 @@ jobs:
           args: generate-readme
       # Upload Artifact
       - uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
+        if: '!cancelled()'
         with:
           name: ci_output
           path: workflow_output
