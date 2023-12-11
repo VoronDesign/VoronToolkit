@@ -6,6 +6,6 @@ images:
  - Images/CAD1.png
  - Images/photo.jpg
 cad:
- - CAD/matchstick diffuser.step
+ - CAD/matchstick_diffuser.step
 discord_username: mapleleafmakers
 mod_version: 1
