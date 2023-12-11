@@ -30,7 +30,7 @@ jobs:
         with:
           ref: ${{ github.ref }}
           path: ${{ github.workspace }}
-          sparse-checkout: ${{ steps.escape-sanitize_file_list.outputs.FILE_LIST_SANITIZE_OUTPUT }}
+          sparse-checkout: ${{ steps.sanitize_file_list.outputs.FILE_LIST_SANITIZE_OUTPUT }}
           sparse-checkout-cone-mode: false
       # Run whitespace checks based on files in the test directory
       - name: Whitespace Checker (input_dir)
