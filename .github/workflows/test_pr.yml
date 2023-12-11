@@ -42,6 +42,7 @@ jobs:
         with:
           args: check-whitespace
       - name: Mod Structure Checker
+        if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         env:
           MOD_STRUCTURE_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
@@ -51,6 +52,7 @@ jobs:
           args: check-mod-structure
       # Run the corruption checker
       - name: Corruption Checker
+        if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         env:
           CORRUPTION_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
@@ -60,6 +62,7 @@ jobs:
           args: check-stl-corruption
       # Run the rotation checker
       - name: Rotation Checker
+        if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         env:
           ROTATION_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
@@ -71,6 +74,7 @@ jobs:
           args: check-stl-rotation
       # Generate a README
       - name: Generate README
+        if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         env:
           README_GENERATOR_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
