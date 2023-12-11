@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Self
 
 import configargparse
+from loguru import logger
 from tweaker3.FileHandler import FileHandler
 from tweaker3.MeshTweaker import Tweak
 
@@ -18,8 +19,6 @@ from voron_ci.utils.action_summary import ActionSummaryTable
 from voron_ci.utils.file_helper import FileHelper
 from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
 from voron_ci.utils.logging import init_logging
-
-logger = init_logging(__name__)
 
 TWEAK_THRESHOLD = 0.1
 ENV_VAR_PREFIX = "ROTATION_CHECKER"
@@ -35,8 +34,7 @@ class STLRotationChecker:
         self.check_summary: list[list[str]] = []
         self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
 
-        if args.verbose:
-            logger.setLevel("INFO")
+        init_logging(verbose=args.verbose)
 
     def _get_rotated_stl_bytes(self: Self, objects: dict[int, Any], info: dict[int, Any]) -> bytes:
         # Adapted from https://github.com/ChristophSchranz/Tweaker-3/blob/master/FileHandler.py
@@ -102,7 +100,7 @@ class STLRotationChecker:
         return f'[<img src="{image_address}" width="100" height="100">]({image_address})'
 
     def run(self: Self) -> None:
-        logger.info("Searching for STL files in '%s'", str(self.input_dir))
+        logger.info("Searching for STL files in '{}'", str(self.input_dir))
 
         stl_paths: list[Path] = FileHelper.find_files(directory=self.input_dir, extension="stl", max_files=40)
 
@@ -133,17 +131,16 @@ class STLRotationChecker:
         )
 
     def _check_stl(self: Self, stl_file_path: Path) -> ReturnStatus:
-        logger.info("Checking '%s'", stl_file_path.relative_to(self.input_dir).as_posix())
         try:
             mesh_objects: dict[int, Any] = FileHandler().load_mesh(inputfile=stl_file_path.as_posix())
             if len(mesh_objects.items()) > 1:
-                logger.warning("File '%s' contains multiple objects and is therefore skipped!", stl_file_path.relative_to(self.input_dir).as_posix())
+                logger.warning("File '{}' contains multiple objects and is therefore skipped!", stl_file_path.relative_to(self.input_dir).as_posix())
                 self.check_summary.append([stl_file_path.name, SummaryStatus.WARNING, "", ""])
                 return ReturnStatus.WARNING
             rotated_mesh: Tweak = Tweak(mesh_objects[0]["mesh"], extended_mode=True, verbose=False, min_volume=True)
 
             if rotated_mesh.rotation_angle >= TWEAK_THRESHOLD:
-                logger.warning("Found rotation suggestion for STL '%s'!", stl_file_path.relative_to(self.input_dir).as_posix())
+                logger.warning("Found rotation suggestion for STL '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
                 output_stl_path: Path = Path(
                     stl_file_path.relative_to(self.input_dir).with_stem(f"{stl_file_path.stem}_rotated"),
                 )
@@ -165,8 +162,10 @@ class STLRotationChecker:
                     ],
                 )
                 return ReturnStatus.WARNING
+
+            logger.success("File '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
             return ReturnStatus.SUCCESS
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.exception("A fatal error occurred during rotation checking", exc_info=e)
             self.check_summary.append([stl_file_path.name, SummaryStatus.EXCEPTION, "", ""])
             return ReturnStatus.EXCEPTION

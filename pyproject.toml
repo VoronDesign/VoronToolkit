@@ -15,7 +15,7 @@ pyyaml = "^6.0.1"
 gitpython = "^3.1.40"
 requests = "^2.31.0"
 configargparse = "^1.7"
-coloredlogs = "^15.0.1"
+loguru = "^0.7.2"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -41,7 +41,8 @@ select = ["ALL" ]
 ignore = [
     "D", # no docs
     "ISC001", "COM812", # Might cause issues with formatter
-    "TRY300" # competes with RET505
+    "TRY300", # competes with RET505
+    "PLE1205", # ruff gets confused about loguru
 ]
 fixable = ["ALL"]
 

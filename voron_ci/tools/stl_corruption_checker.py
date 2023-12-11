@@ -5,15 +5,13 @@ from typing import Self
 
 import configargparse
 from admesh import Stl
+from loguru import logger
 
 from voron_ci.constants import ReturnStatus, SummaryStatus
 from voron_ci.utils.action_summary import ActionSummaryTable
 from voron_ci.utils.file_helper import FileHelper
 from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
 from voron_ci.utils.logging import init_logging
-
-logger = init_logging(__name__)
-
 
 ENV_VAR_PREFIX = "CORRUPTION_CHECKER"
 
@@ -25,11 +23,10 @@ class STLCorruptionChecker:
         self.check_summary: list[list[str]] = []
         self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
 
-        if args.verbose:
-            logger.setLevel("INFO")
+        init_logging(verbose=args.verbose)
 
     def run(self: Self) -> None:
-        logger.info("Searching for STL files in '%s'", str(self.input_dir))
+        logger.info("Searching for STL files in '{}'", str(self.input_dir))
 
         stl_paths: list[Path] = FileHelper.find_files(directory=self.input_dir, extension="stl", max_files=40)
 
@@ -55,7 +52,7 @@ class STLCorruptionChecker:
 
     def _write_fixed_stl_file(self: Self, stl: Stl, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        logger.info("Saving fixed STL to '%s'", path)
+        logger.info("Saving fixed STL to '{}'", path)
         temp_file = tempfile.NamedTemporaryFile(suffix=".stl")
         stl.write_binary(temp_file.name)
         self.gh_helper.set_artifact(file_name=path.as_posix(), file_contents=Path(temp_file.name).read_bytes())
@@ -63,7 +60,6 @@ class STLCorruptionChecker:
 
     def _check_stl(self: Self, stl_file_path: Path) -> ReturnStatus:
         try:
-            logger.info("Checking '%s'", stl_file_path.relative_to(self.input_dir).as_posix())
             stl: Stl = Stl(stl_file_path.as_posix())
             stl.repair(verbose_flag=False)
             if (
@@ -74,7 +70,7 @@ class STLCorruptionChecker:
                 or stl.stats["facets_added"] > 0
                 or stl.stats["facets_reversed"] > 0
             ):
-                logger.error("Corrupt STL detected '%s'!", stl_file_path.relative_to(self.input_dir).as_posix())
+                logger.error("Corrupt STL detected '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
                 self.check_summary.append(
                     [
                         stl_file_path.name,
@@ -89,9 +85,10 @@ class STLCorruptionChecker:
                 )
                 self._write_fixed_stl_file(stl=stl, path=Path(stl_file_path.relative_to(self.input_dir)))
                 return ReturnStatus.FAILURE
+            logger.success("STL '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
             return ReturnStatus.SUCCESS
-        except Exception as e:
-            logger.exception("A fatal error occurred during corruption checking", exc_info=e)
+        except Exception:  # noqa: BLE001
+            logger.exception("A fatal error occurred while checking '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
                 [stl_file_path.name, SummaryStatus.EXCEPTION, "0", "0", "0", "0", "0", "0"],
             )

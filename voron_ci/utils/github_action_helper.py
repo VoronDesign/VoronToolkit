@@ -1,5 +1,4 @@
 import datetime
-import logging
 import os
 import sys
 import zipfile
@@ -10,7 +9,8 @@ from pathlib import Path
 from typing import Self
 
 import requests
-from git import Repo
+from git import InvalidGitRepositoryError, NoSuchPathError, Repo
+from loguru import logger
 
 from voron_ci.constants import EXTENDED_OUTCOME, ReturnStatus
 from voron_ci.utils.action_summary import ActionSummary
@@ -20,8 +20,6 @@ OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
 VORON_CI_OUTPUT_ENV_VAR = "VORON_CI_OUTPUT"
 VORON_CI_STEP_SUMMARY_ENV_VAR = "VORON_CI_STEP_SUMMARY"
 VORON_CI_GITHUB_TOKEN_ENV_VAR = "VORON_CI_GITHUB_TOKEN"  # noqa: S105
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -57,7 +55,7 @@ class GithubActionHelper:
         self.artifacts[file_name] = file_contents
 
     def _write_outputs(self: Self) -> None:
-        with Path(os.environ["GITHUB_OUTPUT"]).open("a") as gh_output:
+        with Path(os.environ.get("GITHUB_OUTPUT", "/dev/null")).open("a") as gh_output:
             gh_output.write(self.github_output.getvalue())
 
     def write_outputs(self: Self) -> None:
@@ -65,7 +63,7 @@ class GithubActionHelper:
 
     def _write_step_summary(self: Self, action_result: ActionResult) -> None:
         if self.do_gh_step_summary:
-            with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as gh_step_summary:
+            with Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).open("a") as gh_step_summary:
                 gh_step_summary.write(action_result.summary.to_markdown())
 
     def _write_artifacts(self: Self, action_result: ActionResult) -> None:
@@ -88,7 +86,7 @@ class GithubActionHelper:
 
         result_ok = ReturnStatus.WARNING if self.ignore_warnings else ReturnStatus.SUCCESS
         if action_result.outcome > result_ok:
-            logger.error("Error detected while performing action '%s' (result: '%s' > '%s')!", action_result.action_name, action_result.outcome, result_ok)
+            logger.error("Error detected while performing action '{}' (result: '{}' > '{}')!", action_result.action_name, action_result.outcome, result_ok)
             sys.exit(255)
 
     @classmethod
@@ -105,7 +103,7 @@ class GithubActionHelper:
             response = requests.get(github_api_url, headers=headers, timeout=10)
             response.raise_for_status()
         except requests.HTTPError:
-            logger.exception("Failed to retrieve jobs. Status code: %d", response.status_code)
+            logger.exception("Failed to retrieve jobs. Status code: {}", response.status_code)
             return ""
 
         data = response.json()
@@ -114,7 +112,7 @@ class GithubActionHelper:
         if matching_jobs:
             job = matching_jobs[0]
             return job["id"]
-        logger.warning("No job found with name '%s'", job_name)
+        logger.warning("No job found with name '{}'", job_name)
         return ""
 
     @classmethod
@@ -127,8 +125,8 @@ class GithubActionHelper:
             for commit in repo.iter_commits(paths=file_or_directory, max_count=1):
                 return commit.authored_datetime.astimezone(datetime.UTC).isoformat()
 
-        except Exception:
-            logger.exception("An error occurred while querying last_changed timestamp for '%s'", file_or_directory.as_posix())
+        except (InvalidGitRepositoryError, NoSuchPathError):
+            logger.exception("An error occurred while querying last_changed timestamp for '{}'", file_or_directory.as_posix())
         return ""
 
     @classmethod
@@ -146,7 +144,7 @@ class GithubActionHelper:
             response = requests.get(api_url, headers=headers, timeout=20)
             response.raise_for_status()
         except requests.HTTPError:
-            logger.exception("Failed to fetch artifacts. Status code: %d", response.status_code)
+            logger.exception("Failed to fetch artifacts. Status code: {}", response.status_code)
             return
 
         artifacts = response.json().get("artifacts", [])
@@ -159,25 +157,20 @@ class GithubActionHelper:
                 break
 
         if artifact_id is None:
-            logger.error("Artifact '%s' not found in the workflow run %s", artifact_name, workflow_run_id)
+            logger.error("Artifact '{}' not found in the workflow run {}", artifact_name, workflow_run_id)
             return
 
         # Download artifact zip file
         download_url = f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact_id}/zip"
-        headers: dict[str, str] = {
-            "Authorization": f"token {os.environ['VORON_CI_GITHUB_TOKEN']}",
-            "Accept": "application/vnd.github.v3+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
         try:
             download_response = requests.get(download_url, headers=headers, timeout=20)
             download_response.raise_for_status()
         except requests.HTTPError:
-            logger.exception("Failed to download artifact '%s'", artifact_name)
+            logger.exception("Failed to download artifact '{}'", artifact_name)
             return
 
         if download_response.status_code >= HTTPStatus.MULTIPLE_CHOICES:
-            logger.error("Failed to download artifact '%s'. Status code: %d", artifact_name, download_response.status_code)
+            logger.error("Failed to download artifact '{}'. Status code: {}", artifact_name, download_response.status_code)
             return
 
         # Read the zip file content into memory
@@ -192,7 +185,7 @@ class GithubActionHelper:
             # Extract files into the target directory
             zip_ref.extractall(target_path)
 
-        logger.info("Artifact '%s' downloaded and extracted to '%s' successfully.", artifact_name, target_directory.as_posix())
+        logger.info("Artifact '{}' downloaded and extracted to '{}' successfully.", artifact_name, target_directory.as_posix())
 
     @classmethod
     def set_labels_on_pull_request(cls: type[Self], repo: str, pull_request_number: int, labels: list[str]) -> None:
@@ -206,9 +199,7 @@ class GithubActionHelper:
             response: requests.Response = requests.put(api_url, headers=headers, json={"labels": labels}, timeout=10)
             response.raise_for_status()
         except requests.exceptions.HTTPError:
-            logger.exception("Failed to set labels on pull request %d", pull_request_number)
-        except Exception:
-            logger.exception("Failed to set labels on pull request %d", pull_request_number)
+            logger.exception("Failed to set labels on pull request {}", pull_request_number)
 
     @classmethod
     def sanitize_file_list(cls: type[Self]) -> None:

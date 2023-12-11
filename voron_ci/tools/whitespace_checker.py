@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
 import configargparse
+from loguru import logger
 
 from voron_ci.constants import ReturnStatus
 from voron_ci.utils.action_summary import ActionSummaryTable
@@ -13,8 +14,6 @@ from voron_ci.utils.logging import init_logging
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-
-logger = init_logging(__name__)
 
 ENV_VAR_PREFIX = "WHITESPACE_CHECKER"
 
@@ -25,8 +24,7 @@ class WhitespaceChecker:
         self.check_summary: list[list[str]] = []
         self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
 
-        if args.verbose:
-            logger.setLevel("INFO")
+        init_logging(verbose=args.verbose)
 
         if (args.input_dir and args.input_env_var) or (not args.input_dir and not args.input_env_var):
             logger.error(
@@ -35,26 +33,27 @@ class WhitespaceChecker:
             sys.exit(255)
 
         if args.input_dir:
-            logger.info("Using input_dir '%s'", args.input_dir)
+            logger.info("Using input_dir '{}'", args.input_dir)
             input_path: Path = Path(Path.cwd(), args.input_dir)
             input_path_files: Iterator[Path] = Path(Path.cwd(), args.input_dir).glob("**/*")
             files = [x for x in input_path_files if x.is_file()]
             self.input_file_list: list[str] = [file_path.relative_to(input_path).as_posix() for file_path in files]
         else:
-            logger.info("Using input_env_var '%s'", args.input_env_var)
+            logger.info("Using input_env_var '{}'", args.input_env_var)
             self.input_file_list = os.environ.get(args.input_env_var, "").splitlines()
 
     def _check_for_whitespace(self: Self) -> None:
         for input_file in self.input_file_list:
             if not input_file:
                 continue
-            logger.info("Checking file '%s' ...", input_file)
-            for c in input_file:
-                if c in string.whitespace:
-                    logger.error("File '%s' contains whitespace!", input_file)
-                    self.check_summary.append([input_file, "This file contains whitespace!"])
-                    self.return_status = ReturnStatus.FAILURE
-                    break
+            result_ok: bool = all(c not in string.whitespace for c in input_file)
+
+            if result_ok:
+                logger.success("File '{}' OK!", input_file)
+            else:
+                logger.error("File '{}' contains whitespace!", input_file)
+                self.check_summary.append([input_file, "This file contains whitespace!"])
+                self.return_status = ReturnStatus.FAILURE
 
     def run(self: Self) -> None:
         logger.info("Starting whitespace check ...")

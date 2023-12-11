@@ -1,10 +1,13 @@
-import logging
+import sys
 
-import coloredlogs
+import loguru
 
 
-def init_logging(name: str) -> logging.Logger:
-    logger = logging.getLogger(name)
-    coloredlogs.install(level="DEBUG", fmt="%(levelname)s %(message)s", logger=logger, isatty=True, reconfigure=True)
-    logger.setLevel("WARNING")
-    return logger
+def init_logging(*, verbose: bool) -> None:
+    loguru.logger.remove()
+    loguru.logger.level("INFO", color="<blue>", icon="📢")
+    loguru.logger.level("SUCCESS", color="<green>", icon="✅")
+    loguru.logger.level("WARNING", color="<yellow>", icon="⚠️")
+    loguru.logger.level("ERROR", color="<red>", icon="❌")
+    loguru.logger.level("CRITICAL", color="<red><bold>", icon="💀")
+    loguru.logger.add(sys.stderr, level="INFO" if verbose else "WARN", colorize=True, format="<level> {level.icon} </level>- {message}")

@@ -1,9 +1,8 @@
 import itertools
-import logging
 from pathlib import Path
 from typing import Self
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class FileHelper:

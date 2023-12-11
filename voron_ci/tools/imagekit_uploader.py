@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Self
 import configargparse
 from imagekitio import ImageKit
 from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions
+from loguru import logger
 
 from voron_ci.utils.github_action_helper import GithubActionHelper
 from voron_ci.utils.logging import init_logging
@@ -17,10 +18,7 @@ if TYPE_CHECKING:
 
     from imagekitio.models.results import UploadFileResult
 
-logger = init_logging(__name__)
-
 ENV_VAR_PREFIX = "IMAGEKIT_UPLOADER"
-
 IMAGE_SUBDIRECTORY = "rotation_checker/img"
 
 
@@ -33,8 +31,7 @@ class ImageKitUploader:
         self.tmp_path: Path = Path()
         self.image_base_path: Path = Path()
 
-        if args.verbose:
-            logger.setLevel("INFO")
+        init_logging(verbose=args.verbose)
 
         try:
             self.imagekit: ImageKit = ImageKit(
@@ -64,9 +61,9 @@ class ImageKitUploader:
             return result.url != ""
 
     def run(self: Self) -> None:
-        logger.info("Downloading artifact '%s' from workflow '%s'", self.artifact_name, self.workflow_run_id)
+        logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
         with tempfile.TemporaryDirectory() as tmpdir:
-            logger.info("Created temporary directory '%s'", tmpdir)
+            logger.info("Created temporary directory '{}'", tmpdir)
             tmp_path = Path(tmpdir)
 
             GithubActionHelper.download_artifact(
@@ -78,11 +75,11 @@ class ImageKitUploader:
 
             self.image_base_path = Path(tmp_path, IMAGE_SUBDIRECTORY)
 
-            logger.info("Processing Image files in %s", tmp_path.as_posix())
+            logger.info("Processing Image files in '{}'", tmp_path.as_posix())
 
             images: list[Path] = list(self.image_base_path.glob("**/*.png"))
             if not images:
-                logger.warning("No images found in input_dir %s!", self.image_base_path.as_posix())
+                logger.warning("No images found in input_dir '{}'!", self.image_base_path.as_posix())
                 return
             with ThreadPoolExecutor() as pool:
                 results: Iterator[bool] = pool.map(self.upload_image, images)

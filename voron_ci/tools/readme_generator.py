@@ -5,13 +5,12 @@ from typing import Any, Self
 
 import configargparse
 import yaml
+from loguru import logger
 
 from voron_ci.constants import ReturnStatus
 from voron_ci.utils.action_summary import ActionSummaryTable
 from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
 from voron_ci.utils.logging import init_logging
-
-logger = init_logging(__name__)
 
 PREAMBLE = """# Mods
 
@@ -37,15 +36,14 @@ class ReadmeGenerator:
         self.readme: bool = args.readme
         self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=False)
 
-        if args.verbose:
-            logger.setLevel("INFO")
+        init_logging(verbose=args.verbose)
 
     def run(self: Self) -> None:
-        logger.info("ReadmeGenerator starting up readme: '%s', json: '%s', input_dir: '%s'", self.readme, self.json, self.input_dir.as_posix())
+        logger.info("ReadmeGenerator starting up readme: '{}', json: '{}', input_dir: '{}'", self.readme, self.json, self.input_dir.as_posix())
         yaml_list = Path(self.input_dir).glob("**/.metadata.yml")
         mods: list[dict[str, Any]] = []
         for yml_file in sorted(yaml_list):
-            logger.info("Parsing '%s'", yml_file.relative_to(self.input_dir).parent.as_posix())
+            logger.info("Parsing '{}'", yml_file.relative_to(self.input_dir).parent.as_posix())
             with Path(yml_file).open("r") as f:
                 content = yaml.safe_load(f)
                 mods.append(
@@ -61,7 +59,7 @@ class ReadmeGenerator:
 
         readme_rows: list[list[str]] = []
         prev_username: str = ""
-        logger.info("Generating rows for %d mods", len(mods))
+        logger.info("Generating rows for {} mods", len(mods))
         for mod in mods:
             readme_rows.append(
                 [
