@@ -14,7 +14,7 @@ from loguru import logger
 from tweaker3.FileHandler import FileHandler
 from tweaker3.MeshTweaker import Tweak
 
-from voron_ci.constants import ReturnStatus, SummaryStatus
+from voron_ci.constants import StepIdentifier, StepResult
 from voron_ci.utils.action_summary import ActionSummaryTable
 from voron_ci.utils.file_helper import FileHelper
 from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
@@ -30,7 +30,7 @@ class STLRotationChecker:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.imagekit_endpoint: str | None = args.imagekit_endpoint if args.imagekit_endpoint else None
         self.imagekit_subfolder: str = args.imagekit_subfolder
-        self.return_status: ReturnStatus = ReturnStatus.SUCCESS
+        self.return_status: StepResult = StepResult.SUCCESS
         self.check_summary: list[list[str]] = []
         self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
 
@@ -105,16 +105,16 @@ class STLRotationChecker:
         stl_paths: list[Path] = FileHelper.find_files(directory=self.input_dir, extension="stl", max_files=40)
 
         with ThreadPoolExecutor() as pool:
-            return_statuses: list[ReturnStatus] = list(pool.map(self._check_stl, stl_paths))
+            return_statuses: list[StepResult] = list(pool.map(self._check_stl, stl_paths))
 
         if return_statuses:
             self.return_status = max(*return_statuses, self.return_status)
         else:
-            self.return_status = ReturnStatus.SUCCESS
+            self.return_status = StepResult.SUCCESS
 
         self.gh_helper.finalize_action(
             action_result=ActionResult(
-                action_id="rotation_checker",
+                action_id=StepIdentifier.ROTATION_CHECK.step_id,
                 action_name="STL rotation checker",
                 outcome=self.return_status,
                 summary=ActionSummaryTable(
@@ -130,13 +130,13 @@ class STLRotationChecker:
             file_name=stl_file_path.as_posix(), file_contents=self._get_rotated_stl_bytes(objects=stl, info={0: {"matrix": opts.matrix, "tweaker_stats": opts}})
         )
 
-    def _check_stl(self: Self, stl_file_path: Path) -> ReturnStatus:
+    def _check_stl(self: Self, stl_file_path: Path) -> StepResult:
         try:
             mesh_objects: dict[int, Any] = FileHandler().load_mesh(inputfile=stl_file_path.as_posix())
             if len(mesh_objects.items()) > 1:
                 logger.warning("File '{}' contains multiple objects and is therefore skipped!", stl_file_path.relative_to(self.input_dir).as_posix())
-                self.check_summary.append([stl_file_path.name, SummaryStatus.WARNING, "", ""])
-                return ReturnStatus.WARNING
+                self.check_summary.append([stl_file_path.name, StepResult.WARNING.result_str, "", ""])
+                return StepResult.WARNING
             rotated_mesh: Tweak = Tweak(mesh_objects[0]["mesh"], extended_mode=True, verbose=False, min_volume=True)
 
             if rotated_mesh.rotation_angle >= TWEAK_THRESHOLD:
@@ -156,19 +156,19 @@ class STLRotationChecker:
                 self.check_summary.append(
                     [
                         stl_file_path.name,
-                        SummaryStatus.WARNING,
+                        StepResult.WARNING.result_str,
                         original_image_url,
                         rotated_image_url,
                     ],
                 )
-                return ReturnStatus.WARNING
+                return StepResult.WARNING
 
             logger.success("File '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
-            return ReturnStatus.SUCCESS
+            return StepResult.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking {}", stl_file_path.relative_to(self.input_dir).as_posix())
-            self.check_summary.append([stl_file_path.name, SummaryStatus.EXCEPTION, "", ""])
-            return ReturnStatus.EXCEPTION
+            self.check_summary.append([stl_file_path.name, StepResult.EXCEPTION.result_str, "", ""])
+            return StepResult.EXCEPTION
 
 
 def main() -> None:

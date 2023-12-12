@@ -26,7 +26,7 @@ class ImageKitUploader:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.artifact_name: str = args.artifact_name
         self.workflow_run_id: str = args.workflow_run_id
-        self.fail_on_error: bool = args.fail_on_error
+        self.ignore_warnings: bool = args.ignore_warnings
         self.github_repository: str = args.github_repository
         self.tmp_path: Path = Path()
         self.image_base_path: Path = Path()
@@ -49,7 +49,7 @@ class ImageKitUploader:
             )
         except (KeyError, ValueError):
             logger.warning("No suitable imagekit credentials were found. Skipping image upload!")
-            if self.fail_on_error:
+            if not self.ignore_warnings:
                 sys.exit(255)
             sys.exit(0)
 
@@ -84,7 +84,7 @@ class ImageKitUploader:
             with ThreadPoolExecutor() as pool:
                 results: Iterator[bool] = pool.map(self.upload_image, images)
 
-            if not all(results) and self.fail_on_error:
+            if not all(results) and not self.ignore_warnings:
                 logger.error("Errors detected during image upload!")
                 sys.exit(255)
 
@@ -141,11 +141,11 @@ def main() -> None:
     )
     parser.add_argument(
         "-f",
-        "--fail_on_error",
+        "--ignore_warnings",
         required=False,
         action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_FAIL_ON_ERROR",
-        help="Whether to return an error exit code if one of the STLs is faulty",
+        env_var=f"{ENV_VAR_PREFIX}_IGNORE_WARNINGS",
+        help="Whether to ignore warnings and return a success exit code",
         default=False,
     )
     parser.add_argument(

@@ -3,16 +3,16 @@ import os
 import sys
 import zipfile
 from dataclasses import dataclass
-from http import HTTPStatus
 from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Self
 
 import requests
 from git import InvalidGitRepositoryError, NoSuchPathError, Repo
+from githubkit import GitHub, Response
 from loguru import logger
 
-from voron_ci.constants import EXTENDED_OUTCOME, ReturnStatus
+from voron_ci.constants import PR_COMMENT_TAG, StepResult
 from voron_ci.utils.action_summary import ActionSummary
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
@@ -26,7 +26,7 @@ VORON_CI_GITHUB_TOKEN_ENV_VAR = "VORON_CI_GITHUB_TOKEN"  # noqa: S105
 class ActionResult:
     action_id: str
     action_name: str
-    outcome: ReturnStatus
+    outcome: StepResult
     summary: ActionSummary
 
 
@@ -76,15 +76,14 @@ class GithubActionHelper:
             with Path(self.output_path, action_result.action_id, "summary.md").open("w") as f:
                 f.write(action_result.summary.to_markdown())
             with Path(self.output_path, action_result.action_id, "outcome.txt").open("w") as f:
-                f.write(str(action_result.outcome))
+                f.write(action_result.outcome.result_str)
 
     def finalize_action(self: Self, action_result: ActionResult) -> None:
-        self.set_output(output={"extended-outcome": EXTENDED_OUTCOME[action_result.outcome]})
         self._write_outputs()
         self._write_step_summary(action_result=action_result)
         self._write_artifacts(action_result=action_result)
 
-        result_ok = ReturnStatus.WARNING if self.ignore_warnings else ReturnStatus.SUCCESS
+        result_ok = StepResult.WARNING if self.ignore_warnings else StepResult.SUCCESS
         if action_result.outcome > result_ok:
             logger.error("Error detected while performing action '{}' (result: '{}' > '{}')!", action_result.action_name, action_result.outcome, result_ok)
             sys.exit(255)
@@ -130,51 +129,35 @@ class GithubActionHelper:
         return ""
 
     @classmethod
+    def set_labels_on_pull_request(cls: type[Self], repo: str, pull_request_number: int, labels: list[str]) -> None:
+        github = GitHub(os.environ["VORON_CI_GITHUB_TOKEN"])
+        github.rest.issues.set_labels(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number, labels=labels)
+
+    @classmethod
     def download_artifact(cls: type[Self], repo: str, workflow_run_id: str, artifact_name: str, target_directory: Path) -> None:
-        # GitHub API endpoint to get the artifact information
-        api_url = f"https://api.github.com/repos/{repo}/actions/runs/{workflow_run_id}/artifacts"
-        headers: dict[str, str] = {
-            "Authorization": f"token {os.environ['VORON_CI_GITHUB_TOKEN']}",
-            "Accept": "application/vnd.github.v3+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
+        github: GitHub = GitHub(os.environ["VORON_CI_GITHUB_TOKEN"])
+        response: Response = github.rest.actions.list_workflow_run_artifacts(owner=repo.split("/")[0], repo=repo.split("/")[1], run_id=int(workflow_run_id))
 
-        # Make a GET request to fetch artifact details
-        try:
-            response = requests.get(api_url, headers=headers, timeout=20)
-            response.raise_for_status()
-        except requests.HTTPError:
-            logger.exception("Failed to fetch artifacts. Status code: {}", response.status_code)
-            return
-
-        artifacts = response.json().get("artifacts", [])
-        artifact_id = None
+        artifacts: list[dict[str, str]] = response.json().get("artifacts", [])
+        artifact_id: int = -1
 
         # Find the artifact by name
         for artifact in artifacts:
             if artifact["name"] == artifact_name:
-                artifact_id = artifact["id"]
+                artifact_id = int(artifact["id"])
                 break
 
-        if artifact_id is None:
+        if artifact_id == -1:
             logger.error("Artifact '{}' not found in the workflow run {}", artifact_name, workflow_run_id)
             return
 
         # Download artifact zip file
-        download_url = f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact_id}/zip"
-        try:
-            download_response = requests.get(download_url, headers=headers, timeout=20)
-            download_response.raise_for_status()
-        except requests.HTTPError:
-            logger.exception("Failed to download artifact '{}'", artifact_name)
-            return
-
-        if download_response.status_code >= HTTPStatus.MULTIPLE_CHOICES:
-            logger.error("Failed to download artifact '{}'. Status code: {}", artifact_name, download_response.status_code)
-            return
+        response_download: Response = github.rest.actions.download_artifact(
+            owner=repo.split("/")[0], repo=repo.split("/")[1], artifact_id=artifact_id, archive_format="zip"
+        )
 
         # Read the zip file content into memory
-        zip_content = BytesIO(download_response.content)
+        zip_content: BytesIO = BytesIO(response_download.content)
 
         # Unzip artifact contents into target directory
         with zipfile.ZipFile(zip_content, "r") as zip_ref:
@@ -188,23 +171,24 @@ class GithubActionHelper:
         logger.info("Artifact '{}' downloaded and extracted to '{}' successfully.", artifact_name, target_directory.as_posix())
 
     @classmethod
-    def set_labels_on_pull_request(cls: type[Self], repo: str, pull_request_number: int, labels: list[str]) -> None:
-        api_url: str = f"https://api.github.com/repos/{repo}/issues/{pull_request_number}/labels"
-        headers: dict[str, str] = {
-            "Authorization": f"token {os.environ['VORON_CI_GITHUB_TOKEN']}",
-            "Accept": "application/vnd.github.v3+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        try:
-            response: requests.Response = requests.put(api_url, headers=headers, json={"labels": labels}, timeout=10)
-            response.raise_for_status()
-        except requests.exceptions.HTTPError:
-            logger.exception("Failed to set labels on pull request {}", pull_request_number)
+    def update_or_create_pr_comment(cls: type[Self], repo: str, pull_request_number: int, comment_body: str) -> None:
+        github: GitHub = GitHub(os.environ["VORON_CI_GITHUB_TOKEN"])
+        response: Response = github.rest.issues.list_comments(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number)
 
-    @classmethod
-    def sanitize_file_list(cls: type[Self]) -> None:
-        file_list: list[str] = os.environ.get("FILE_LIST_SANITIZE_INPUT", "").splitlines()
-        output_file_list: list[str] = [input_file.replace("[", "\\[").replace("]", "\\]") for input_file in file_list]
-        gh_helper: GithubActionHelper = GithubActionHelper()
-        gh_helper.set_output_multiline(output={"FILE_LIST_SANITIZE_OUTPUT": output_file_list})
-        gh_helper.write_outputs()
+        existing_comments: list[dict[str, str]] = response.json()
+        comment_id: int = -1
+
+        # Find the comment by the author
+        for existing_comment in existing_comments:
+            if PR_COMMENT_TAG in existing_comment["body"]:
+                comment_id = int(existing_comment["id"])
+                break
+
+        full_comment = f"{comment_body}\n\n{PR_COMMENT_TAG}\n"
+
+        if comment_id == -1:
+            # Create a new comment
+            github.rest.issues.create_comment(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number, body=full_comment)
+        else:
+            # Update existing comment
+            github.rest.issues.update_comment(owner=repo.split("/")[0], repo=repo.split("/")[1], comment_id=comment_id, body=full_comment)

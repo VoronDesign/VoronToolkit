@@ -7,7 +7,7 @@ license = "GPLv3"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.11"
+python = ">=3.11,<4.0"
 admesh = "^0.98.9"
 imagekitio = "^3.2.0"
 tweaker3 = {git = "https://github.com/ChristophSchranz/Tweaker-3.git"}
@@ -16,6 +16,7 @@ gitpython = "^3.1.40"
 requests = "^2.31.0"
 configargparse = "^1.7"
 loguru = "^0.7.2"
+githubkit = "^0.10.7"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -67,7 +68,8 @@ check-stl-corruption = "voron_ci.tools.stl_corruption_checker:main"
 check-stl-rotation = "voron_ci.tools.stl_rotation_checker:main"
 check-mod-structure = "voron_ci.tools.mod_structure_checker:main"
 check-whitespace = "voron_ci.tools.whitespace_checker:main"
-upload-images = "voron_ci.tools.imagekit_uploader:main"
 generate-readme = "voron_ci.tools.readme_generator:main"
+upload-images = "voron_ci.utils.imagekit_uploader:main"
 debug-container = "voron_ci.utils.debug_container:print_container_info"
-sanitize-file-list = "voron_ci.utils.github_action_helper:GithubActionHelper.sanitize_file_list"
+sanitize-file-list = "voron_ci.utils.file_helper:sanitize_file_list"
+set-pr-comment-labels = "voron_ci.utils.pr_helper:main"

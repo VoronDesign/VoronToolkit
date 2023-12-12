@@ -1,8 +1,11 @@
 import itertools
+import os
 from pathlib import Path
 from typing import Self
 
 from loguru import logger
+
+from voron_ci.utils.github_action_helper import GithubActionHelper
 
 
 class FileHelper:
@@ -30,3 +33,11 @@ class FileHelper:
     @classmethod
     def get_all_folders(cls: type[Self], _: Path) -> list[Path]:
         return []
+
+
+def sanitize_file_list() -> None:
+    file_list: list[str] = os.environ.get("FILE_LIST_SANITIZE_INPUT", "").splitlines()
+    output_file_list: list[str] = [input_file.replace("[", "\\[").replace("]", "\\]") for input_file in file_list]
+    gh_helper: GithubActionHelper = GithubActionHelper()
+    gh_helper.set_output_multiline(output={"FILE_LIST_SANITIZE_OUTPUT": output_file_list})
+    gh_helper.write_outputs()

@@ -6,7 +6,7 @@ import configargparse
 import yaml
 from loguru import logger
 
-from voron_ci.constants import ReturnStatus
+from voron_ci.constants import StepIdentifier, StepResult
 from voron_ci.utils.action_summary import ActionSummaryTable
 from voron_ci.utils.file_helper import FileHelper
 from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
@@ -28,7 +28,7 @@ class ModStructureChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
-        self.return_status: ReturnStatus = ReturnStatus.SUCCESS
+        self.return_status: StepResult = StepResult.SUCCESS
         self.check_summary: list[list[str]] = []
 
         init_logging(verbose=args.verbose)
@@ -42,7 +42,7 @@ class ModStructureChecker:
             if not Path(mod_folder, ".metadata.yml").exists():
                 logger.error("Mod '{}' is missing a metadata file!", mod_folder)
                 self.check_summary.append([mod_folder.relative_to(self.input_dir).as_posix(), FileErrors.mod_missing_metadata.value.format(mod_folder)])
-                self.return_status = ReturnStatus.FAILURE
+                self.return_status = StepResult.FAILURE
                 continue
 
             metadata: dict[str, Any] = yaml.safe_load(Path(mod_folder, ".metadata.yml").read_text())
@@ -55,7 +55,7 @@ class ModStructureChecker:
                     if not Path(mod_folder, file).exists():
                         logger.error("File '{}' is missing in mod folder '{}'!", file, mod_folder)
                         self.check_summary.append([mod_folder.relative_to(self.input_dir).as_posix(), FileErrors.file_from_metadata_missing.value.format(file)])
-                        self.return_status = ReturnStatus.FAILURE
+                        self.return_status = StepResult.FAILURE
 
     def _check_shallow_files(self: Self) -> None:
         logger.info("Performing shallow file check")
@@ -63,7 +63,7 @@ class ModStructureChecker:
         for file_folder in files_folders:
             logger.warning("File '{}' outside mod folder structure!", file_folder)
             self.check_summary.append([file_folder.relative_to(self.input_dir).as_posix(), FileErrors.file_outside_mod_folder.value.format(file_folder)])
-            self.return_status = ReturnStatus.FAILURE
+            self.return_status = StepResult.FAILURE
 
     def run(self: Self) -> None:
         logger.info("Starting files check in '{}'", str(self.input_dir))
@@ -73,7 +73,7 @@ class ModStructureChecker:
 
         self.gh_helper.finalize_action(
             action_result=ActionResult(
-                action_id="mod_structure_checker",
+                action_id=StepIdentifier.MOD_STRUCTURE_CHECK.step_id,
                 action_name="Mod structure checker",
                 outcome=self.return_status,
                 summary=ActionSummaryTable(

@@ -7,7 +7,7 @@ import configargparse
 import yaml
 from loguru import logger
 
-from voron_ci.constants import ReturnStatus
+from voron_ci.constants import StepIdentifier, StepResult
 from voron_ci.utils.action_summary import ActionSummaryTable
 from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
 from voron_ci.utils.logging import init_logging
@@ -88,9 +88,9 @@ class ReadmeGenerator:
 
         self.gh_helper.finalize_action(
             action_result=ActionResult(
-                action_id="readme_generator",
+                action_id=StepIdentifier.README_GENERATOR.step_id,
                 action_name="Readme generator",
-                outcome=ReturnStatus.SUCCESS,
+                outcome=StepResult.SUCCESS,
                 summary=ActionSummaryTable(
                     title="Readme preview",
                     columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"],

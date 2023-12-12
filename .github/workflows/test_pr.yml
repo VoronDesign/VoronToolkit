@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, reopened, synchronize]
 jobs:
-    test_job:
+    voron_ci:
       env:
         VORON_CI_OUTPUT: workflow_output
         VORON_CI_STEP_SUMMARY: true
@@ -83,6 +83,11 @@ jobs:
           README_GENERATOR_JSON: false
         with:
           args: generate-readme
+      # Store the PR number
+      - name: Store PR Number
+        if: '!cancelled()'
+        run: |
+          echo -n ${{ github.event.number }} > ${{ env.VORON_CI_OUTPUT }}/pr_number.txt
       # Upload Artifact
       - uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
         if: '!cancelled()'

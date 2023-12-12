@@ -7,7 +7,7 @@ import configargparse
 from admesh import Stl
 from loguru import logger
 
-from voron_ci.constants import ReturnStatus, SummaryStatus
+from voron_ci.constants import StepIdentifier, StepResult
 from voron_ci.utils.action_summary import ActionSummaryTable
 from voron_ci.utils.file_helper import FileHelper
 from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
@@ -19,7 +19,7 @@ ENV_VAR_PREFIX = "CORRUPTION_CHECKER"
 class STLCorruptionChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
-        self.return_status: ReturnStatus = ReturnStatus.SUCCESS
+        self.return_status: StepResult = StepResult.SUCCESS
         self.check_summary: list[list[str]] = []
         self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
 
@@ -31,15 +31,15 @@ class STLCorruptionChecker:
         stl_paths: list[Path] = FileHelper.find_files(directory=self.input_dir, extension="stl", max_files=40)
 
         with ThreadPoolExecutor() as pool:
-            return_statuses: list[ReturnStatus] = list(pool.map(self._check_stl, stl_paths))
+            return_statuses: list[StepResult] = list(pool.map(self._check_stl, stl_paths))
         if return_statuses:
             self.return_status = max(*return_statuses, self.return_status)
         else:
-            self.return_status = ReturnStatus.SUCCESS
+            self.return_status = StepResult.SUCCESS
 
         self.gh_helper.finalize_action(
             action_result=ActionResult(
-                action_id="corruption_checker",
+                action_id=StepIdentifier.CORRUPTION_CHECK.step_id,
                 action_name="STL corruption checker",
                 outcome=self.return_status,
                 summary=ActionSummaryTable(
@@ -58,7 +58,7 @@ class STLCorruptionChecker:
         self.gh_helper.set_artifact(file_name=path.as_posix(), file_contents=Path(temp_file.name).read_bytes())
         temp_file.close()
 
-    def _check_stl(self: Self, stl_file_path: Path) -> ReturnStatus:
+    def _check_stl(self: Self, stl_file_path: Path) -> StepResult:
         try:
             stl: Stl = Stl(stl_file_path.as_posix())
             stl.repair(verbose_flag=False)
@@ -74,7 +74,7 @@ class STLCorruptionChecker:
                 self.check_summary.append(
                     [
                         stl_file_path.name,
-                        SummaryStatus.FAILURE,
+                        StepResult.FAILURE.result_str,
                         str(stl.stats["edges_fixed"]),
                         str(stl.stats["backwards_edges"]),
                         str(stl.stats["degenerate_facets"]),
@@ -84,15 +84,15 @@ class STLCorruptionChecker:
                     ]
                 )
                 self._write_fixed_stl_file(stl=stl, path=Path(stl_file_path.relative_to(self.input_dir)))
-                return ReturnStatus.FAILURE
+                return StepResult.FAILURE
             logger.success("STL '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
-            return ReturnStatus.SUCCESS
+            return StepResult.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
-                [stl_file_path.name, SummaryStatus.EXCEPTION, "0", "0", "0", "0", "0", "0"],
+                [stl_file_path.name, StepResult.EXCEPTION.result_str, "0", "0", "0", "0", "0", "0"],
             )
-            return ReturnStatus.EXCEPTION
+            return StepResult.EXCEPTION
 
 
 def main() -> None:

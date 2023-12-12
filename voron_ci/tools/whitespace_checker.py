@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Self
 import configargparse
 from loguru import logger
 
-from voron_ci.constants import ReturnStatus
+from voron_ci.constants import StepIdentifier, StepResult
 from voron_ci.utils.action_summary import ActionSummaryTable
 from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
 from voron_ci.utils.logging import init_logging
@@ -20,7 +20,7 @@ ENV_VAR_PREFIX = "WHITESPACE_CHECKER"
 
 class WhitespaceChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
-        self.return_status: ReturnStatus = ReturnStatus.SUCCESS
+        self.return_status: StepResult = StepResult.SUCCESS
         self.check_summary: list[list[str]] = []
         self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
 
@@ -53,7 +53,7 @@ class WhitespaceChecker:
             else:
                 logger.error("File '{}' contains whitespace!", input_file)
                 self.check_summary.append([input_file, "This file contains whitespace!"])
-                self.return_status = ReturnStatus.FAILURE
+                self.return_status = StepResult.FAILURE
 
     def run(self: Self) -> None:
         logger.info("Starting whitespace check ...")
@@ -62,7 +62,7 @@ class WhitespaceChecker:
 
         self.gh_helper.finalize_action(
             action_result=ActionResult(
-                action_id="whitespace_check",
+                action_id=StepIdentifier.WHITESPACE_CHECK.step_id,
                 action_name="Whitespace check",
                 outcome=self.return_status,
                 summary=ActionSummaryTable(
