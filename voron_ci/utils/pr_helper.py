@@ -81,13 +81,13 @@ class PrHelper:
         logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
         with tempfile.TemporaryDirectory() as tmpdir:
             logger.info("Created temporary directory '{}'", tmpdir)
-            tmp_path = Path(tmpdir)
+            self.tmp_path = Path(tmpdir)
 
             GithubActionHelper.download_artifact(
                 repo=self.github_repository,
                 workflow_run_id=self.workflow_run_id,
                 artifact_name=self.artifact_name,
-                target_directory=tmp_path,
+                target_directory=self.tmp_path,
             )
 
             self._parse_artifact()
@@ -126,7 +126,7 @@ def main() -> None:
         action="store",
         type=str,
         env_var=f"{ENV_VAR_PREFIX}_GITHUB_REPOSITORY",
-        default=os.environ["GITHUB_REPOSITORY"],
+        default=os.environ.get("GITHUB_REPOSITORY", ""),
         help="Repository from which to download the artifact",
     )
     parser.add_argument(

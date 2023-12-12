@@ -76,7 +76,7 @@ class GithubActionHelper:
             with Path(self.output_path, action_result.action_id, "summary.md").open("w") as f:
                 f.write(action_result.summary.to_markdown())
             with Path(self.output_path, action_result.action_id, "outcome.txt").open("w") as f:
-                f.write(action_result.outcome.result_str)
+                f.write(action_result.outcome.name)
 
     def finalize_action(self: Self, action_result: ActionResult) -> None:
         self._write_outputs()
