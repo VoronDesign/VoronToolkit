@@ -6,7 +6,7 @@ on:
 jobs:
     voron_ci:
       env:
-        VORON_CI_OUTPUT: workflow_output
+        VORON_CI_OUTPUT: ${{ github.workspace }}/workflow_output
         VORON_CI_STEP_SUMMARY: true
       runs-on: ubuntu-latest
       steps:
@@ -87,10 +87,10 @@ jobs:
       - name: Store PR Number
         if: '!cancelled()'
         run: |
-          echo -n ${{ github.event.number }} > ${{ env.VORON_CI_OUTPUT }}/pr_number.txt
+          echo -n ${{ github.event.number }} > ${{ github.workspace }}/${{ env.VORON_CI_OUTPUT }}/pr_number.txt
       # Upload Artifact
       - uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
         if: '!cancelled()'
         with:
           name: ci_output
-          path: workflow_output
+          path: ${{ github.workspace }}/${{ env.VORON_CI_OUTPUT }}
