@@ -1,3 +1,4 @@
+name: VoronCI PR CI post processing
 on:
   workflow_run:
     workflows: ["VoronCI PR Test CI"]
@@ -18,7 +19,7 @@ jobs:
         PR_HELPER_GITHUB_REPOSITORY: ${{ github.repository }}
         PR_HELPER_VERBOSE: true
       with:
-        args: sanitize-file-list $FILE_LIST_SANITIZE_INPUT
+        args: set-pr-comment-labels
 
   # upload_imagekit:
   #   if: ${{ github.event.workflow_run.event == 'pull_request' }}
