@@ -6,7 +6,7 @@ on:
 jobs:
     voron_ci:
       env:
-        VORON_CI_OUTPUT: workflow_output
+        VORON_CI_OUTPUT: ${{ github.workspace }}/workflow_output
         VORON_CI_STEP_SUMMARY: true
       runs-on: ubuntu-latest
       steps:
@@ -32,6 +32,11 @@ jobs:
           path: ${{ github.workspace }}
           sparse-checkout: ${{ steps.sanitize_file_list.outputs.FILE_LIST_SANITIZE_OUTPUT }}
           sparse-checkout-cone-mode: false
+      - name: Store PR Number
+        if: '!cancelled()'
+        run: |
+          mkdir -p ${{ env.VORON_CI_OUTPUT }}
+          echo -n ${{ github.event.number }} > ${{ env.VORON_CI_OUTPUT }}/pr_number.txt
       # Run whitespace checks based on files in the test directory
       - name: Whitespace Checker (input_dir)
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
@@ -83,11 +88,6 @@ jobs:
           README_GENERATOR_JSON: false
         with:
           args: generate-readme
-      # Store the PR number
-      - name: Store PR Number
-        if: '!cancelled()'
-        run: |
-          echo -n ${{ github.event.number }} > ./${{ env.VORON_CI_OUTPUT }}/pr_number.txt
       # Upload Artifact
       - uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
         if: '!cancelled()'
