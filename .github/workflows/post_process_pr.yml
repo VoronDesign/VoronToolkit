@@ -18,6 +18,7 @@ jobs:
         PR_HELPER_ARTIFACT_NAME: ci_output
         PR_HELPER_GITHUB_REPOSITORY: ${{ github.repository }}
         PR_HELPER_VERBOSE: true
+        VORON_CI_GITHUB_TOKEN: ${{ github.token }}
       with:
         args: set-pr-comment-labels
 
