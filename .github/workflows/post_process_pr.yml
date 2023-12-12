@@ -7,6 +7,8 @@ on:
 
 jobs:
   create_pr_comment:
+    permissions:
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       # Sanitize the file list
