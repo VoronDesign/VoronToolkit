@@ -73,8 +73,8 @@ jobs:
           ROTATION_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           ROTATION_CHECKER_VERBOSE: true
           ROTATION_CHECKER_IGNORE_WARNINGS: true
-          ROTATION_CHECKER_IMAGEKIT_ENDPOINT: ./img
-          ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: test_run
+          ROTATION_CHECKER_IMAGEKIT_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
+          ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: img
         with:
           args: check-stl-rotation
       # Generate a README

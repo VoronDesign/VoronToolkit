@@ -18,18 +18,6 @@ Please find below the results of the automated PR checker:
 
 """
 
-CLOSING_SUCCESS = """
-
-Congratulations, all checks have completed successfully! Your PR is now ready for review!
-
-"""
-
-CLOSING_FAILURE = """
-
-Unfortunately, some checks have failed. Please fix the issues and update your PR.
-
-"""
-
 CLOSING_BOT_NOTICE = """
 
 I am a 🤖, this comment was generated automatically!
@@ -45,7 +33,8 @@ class PrHelper:
         self.tmp_path: Path = Path()
 
         self.pr_number: int = -1
-        self.summaries: str = ""
+
+        self.comment_body: str = PREAMBLE
         self.labels: list[str] = []
 
         init_logging(verbose=args.verbose)
@@ -69,8 +58,8 @@ class PrHelper:
                     Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").exists(),
                 )
                 continue
-            self.summaries += Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").read_text()
-            self.summaries += "\n\n"
+            self.comment_body += Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").read_text()
+            self.comment_body += "\n\n"
             outcome: StepResult = StepResult[Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").read_text()]
             if outcome > StepResult.SUCCESS:
                 self.labels.append(pr_step_identifier.step_pr_label)
@@ -81,19 +70,19 @@ class PrHelper:
         logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
         with tempfile.TemporaryDirectory() as tmpdir:
             logger.info("Created temporary directory '{}'", tmpdir)
-            tmp_path = Path(tmpdir)
+            self.tmp_path = Path(tmpdir)
 
             GithubActionHelper.download_artifact(
                 repo=self.github_repository,
                 workflow_run_id=self.workflow_run_id,
                 artifact_name=self.artifact_name,
-                target_directory=tmp_path,
+                target_directory=self.tmp_path,
             )
 
             self._parse_artifact()
             if self.pr_number > 0:
                 GithubActionHelper.set_labels_on_pull_request(repo=self.github_repository, pull_request_number=self.pr_number, labels=self.labels)
-                GithubActionHelper.update_or_create_pr_comment(repo=self.github_repository, pull_request_number=self.pr_number, comment_body=self.summaries)
+                GithubActionHelper.update_or_create_pr_comment(repo=self.github_repository, pull_request_number=self.pr_number, comment_body=self.comment_body)
 
 
 def main() -> None:
@@ -126,7 +115,7 @@ def main() -> None:
         action="store",
         type=str,
         env_var=f"{ENV_VAR_PREFIX}_GITHUB_REPOSITORY",
-        default=os.environ["GITHUB_REPOSITORY"],
+        default=os.environ.get("GITHUB_REPOSITORY", ""),
         help="Repository from which to download the artifact",
     )
     parser.add_argument(

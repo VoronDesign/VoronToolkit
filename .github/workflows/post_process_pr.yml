@@ -7,9 +7,11 @@ on:
 
 jobs:
   create_pr_comment:
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    permissions:
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
-      # Sanitize the file list
     - name: Create PR comment 💬
       id: create_pr_comment
       uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
@@ -18,16 +20,22 @@ jobs:
         PR_HELPER_ARTIFACT_NAME: ci_output
         PR_HELPER_GITHUB_REPOSITORY: ${{ github.repository }}
         PR_HELPER_VERBOSE: true
+        VORON_CI_GITHUB_TOKEN: ${{ github.token }}
       with:
         args: set-pr-comment-labels
 
-  # upload_imagekit:
-  #   if: ${{ github.event.workflow_run.event == 'pull_request' }}
-  #   uses: VoronDesign/.github/.github/workflows/upload-artifact-imagekit.yml@main
-  #   with:
-  #   artifact_name: pr_rotated_stls
-  #   images_subfolder: img
-  #   imagekit-url-endpoint: https://ik.imagekit.io/vorondesign
-  #   secrets:
-  #   IMAGEKIT_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
-  #   IMAGEKIT_PUBLIC_KEY: ${{ secrets.IMAGEKIT_PUBLIC_KEY }}
+  upload_imagekit:
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Upload images to imagekit 📸
+      id: imagekit-upload
+      uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+      env:
+        IMAGEKIT_UPLOADER_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        IMAGEKIT_UPLOADER_ARTIFACT_NAME: ci_output
+        IMAGEKIT_UPLOADER_GITHUB_REPOSITORY: ${{ github.repository }}
+        IMAGEKIT_UPLOADER_PUBLIC_KEY: ${{ secrets.IMAGEKIT_PUBLIC_KEY }}
+        IMAGEKIT_UPLOADER_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
+        IMAGEKIT_UPLOADER_IMAGEKIT_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
+        IMAGEKIT_UPLOADER_VERBOSE: true

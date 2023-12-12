@@ -10,6 +10,7 @@ from imagekitio import ImageKit
 from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions
 from loguru import logger
 
+from voron_ci.constants import StepIdentifier
 from voron_ci.utils.github_action_helper import GithubActionHelper
 from voron_ci.utils.logging import init_logging
 
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
     from imagekitio.models.results import UploadFileResult
 
 ENV_VAR_PREFIX = "IMAGEKIT_UPLOADER"
-IMAGE_SUBDIRECTORY = "rotation_checker/img"
+IMAGE_SUBDIRECTORY = f"{StepIdentifier.ROTATION_CHECK.step_id}/img"
 
 
 class ImageKitUploader:
@@ -64,18 +65,18 @@ class ImageKitUploader:
         logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
         with tempfile.TemporaryDirectory() as tmpdir:
             logger.info("Created temporary directory '{}'", tmpdir)
-            tmp_path = Path(tmpdir)
+            self.tmp_path = Path(tmpdir)
 
             GithubActionHelper.download_artifact(
                 repo=self.github_repository,
                 workflow_run_id=self.workflow_run_id,
                 artifact_name=self.artifact_name,
-                target_directory=tmp_path,
+                target_directory=self.tmp_path,
             )
 
-            self.image_base_path = Path(tmp_path, IMAGE_SUBDIRECTORY)
+            self.image_base_path = Path(self.tmp_path, IMAGE_SUBDIRECTORY)
 
-            logger.info("Processing Image files in '{}'", tmp_path.as_posix())
+            logger.info("Processing Image files in '{}'", self.tmp_path.as_posix())
 
             images: list[Path] = list(self.image_base_path.glob("**/*.png"))
             if not images:
