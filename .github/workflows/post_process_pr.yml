@@ -39,3 +39,5 @@ jobs:
         IMAGEKIT_UPLOADER_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
         IMAGEKIT_UPLOADER_IMAGEKIT_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
         IMAGEKIT_UPLOADER_VERBOSE: true
+      with:
+        args: upload-images

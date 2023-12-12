@@ -55,6 +55,7 @@ class ImageKitUploader:
             sys.exit(0)
 
     def upload_image(self: Self, image_path: Path) -> bool:
+        logger.info("Uploading image '{}' ...", image_path.as_posix())
         with Path(image_path).open(mode="rb") as image:
             imagekit_options: UploadFileRequestOptions = self.imagekit_options_common
             imagekit_options.folder = image_path.parent.relative_to(Path(self.image_base_path)).as_posix()
@@ -79,6 +80,7 @@ class ImageKitUploader:
             logger.info("Processing Image files in '{}'", self.tmp_path.as_posix())
 
             images: list[Path] = list(self.image_base_path.glob("**/*.png"))
+            logger.info("Found {} images", len(images))
             if not images:
                 logger.warning("No images found in input_dir '{}'!", self.image_base_path.as_posix())
                 return
@@ -165,7 +167,7 @@ def main() -> None:
         action="store",
         type=str,
         env_var=f"{ENV_VAR_PREFIX}_GITHUB_REPOSITORY",
-        default=os.environ["GITHUB_REPOSITORY"],
+        default=os.environ.get("GITHUB_REPOSITORY", ""),
         help="Repository from which to download the artifact",
     )
     args: configargparse.Namespace = parser.parse_args()

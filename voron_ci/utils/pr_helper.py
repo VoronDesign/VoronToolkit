@@ -65,6 +65,7 @@ class PrHelper:
                 self.labels.append(pr_step_identifier.step_pr_label)
         if not self.labels:
             self.labels.append(SUCCESS_LABEL)
+        self.comment_body += CLOSING_BOT_NOTICE
 
     def run(self: Self) -> None:
         logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
