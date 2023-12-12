@@ -6,7 +6,7 @@ on:
 jobs:
     voron_ci:
       env:
-        VORON_CI_OUTPUT: workflow_output
+        VORON_CI_OUTPUT: ${{ github.workspace }}/workflow_output
         VORON_CI_STEP_SUMMARY: true
       runs-on: ubuntu-latest
       steps:
