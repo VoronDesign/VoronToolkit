@@ -11,20 +11,20 @@ jobs:
       runs-on: ubuntu-latest
       steps:
       - id: changed-files
-        name: Get changed files
+        name: Get changed files 🔀
         # Check out files, separate with newlines to catch whitespace in filenames
         uses: tj-actions/changed-files@v37
         with:
           separator: "\n"
       # Sanitize the file list
-      - name: Sanitize file list
+      - name: Sanitize file list 🧹
         id: sanitize_file_list
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         env:
           FILE_LIST_SANITIZE_INPUT: ${{ steps.changed-files.outputs.all_changed_files }}
         with:
           args: sanitize-file-list
-      - name: Perform Sparse Checkout ↪️
+      - name: Perform sparse checkout ↪️
           # Perform a sparse checkout, checking out only the files of the PR
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         with:
@@ -32,13 +32,13 @@ jobs:
           path: ${{ github.workspace }}
           sparse-checkout: ${{ steps.sanitize_file_list.outputs.FILE_LIST_SANITIZE_OUTPUT }}
           sparse-checkout-cone-mode: false
-      - name: Store PR Number
+      - name: Store PR number 🔢
         if: '!cancelled()'
         run: |
           mkdir -p ${{ env.VORON_CI_OUTPUT }}
           echo -n ${{ github.event.number }} > ${{ env.VORON_CI_OUTPUT }}/pr_number.txt
       # Run whitespace checks based on files in the test directory
-      - name: Whitespace Checker (input_dir)
+      - name: Check for whitespace in folders/filenames 🔍
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         env:
           WHITESPACE_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
@@ -46,7 +46,7 @@ jobs:
           WHITESPACE_CHECKER_IGNORE_WARNINGS: false
         with:
           args: check-whitespace
-      - name: Mod Structure Checker
+      - name: Check correct mod/file structure 🔍
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         env:
@@ -56,7 +56,7 @@ jobs:
         with:
           args: check-mod-structure
       # Run the corruption checker
-      - name: Corruption Checker
+      - name: Check for STL corruption 🔍
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         env:
@@ -66,7 +66,7 @@ jobs:
         with:
           args: check-stl-corruption
       # Run the rotation checker
-      - name: Rotation Checker
+      - name: Check for incorrect STL rotation 🔍
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         env:
@@ -78,7 +78,7 @@ jobs:
         with:
           args: check-stl-rotation
       # Generate a README
-      - name: Generate README
+      - name: Generate README 📒
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
         env:
@@ -89,7 +89,8 @@ jobs:
         with:
           args: generate-readme
       # Upload Artifact
-      - uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
+      - name: Upload build artifacts 📦
+        uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
         if: '!cancelled()'
         with:
           name: ci_output

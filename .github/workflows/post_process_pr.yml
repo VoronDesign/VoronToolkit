@@ -1,0 +1,33 @@
+name: VoronCI PR CI post processing
+on:
+  workflow_run:
+    workflows: ["VoronCI PR Test CI"]
+    types:
+    - completed
+
+jobs:
+  create_pr_comment:
+    runs-on: ubuntu-latest
+    steps:
+      # Sanitize the file list
+    - name: Create PR comment 💬
+      id: create_pr_comment
+      uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+      env:
+        PR_HELPER_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        PR_HELPER_ARTIFACT_NAME: ci_output
+        PR_HELPER_GITHUB_REPOSITORY: ${{ github.repository }}
+        PR_HELPER_VERBOSE: true
+      with:
+        args: set-pr-comment-labels
+
+  # upload_imagekit:
+  #   if: ${{ github.event.workflow_run.event == 'pull_request' }}
+  #   uses: VoronDesign/.github/.github/workflows/upload-artifact-imagekit.yml@main
+  #   with:
+  #   artifact_name: pr_rotated_stls
+  #   images_subfolder: img
+  #   imagekit-url-endpoint: https://ik.imagekit.io/vorondesign
+  #   secrets:
+  #   IMAGEKIT_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
+  #   IMAGEKIT_PUBLIC_KEY: ${{ secrets.IMAGEKIT_PUBLIC_KEY }}
