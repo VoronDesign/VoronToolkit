@@ -10,6 +10,7 @@ from imagekitio import ImageKit
 from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions
 from loguru import logger
 
+from voron_ci.constants import StepIdentifier
 from voron_ci.utils.github_action_helper import GithubActionHelper
 from voron_ci.utils.logging import init_logging
 
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
     from imagekitio.models.results import UploadFileResult
 
 ENV_VAR_PREFIX = "IMAGEKIT_UPLOADER"
-IMAGE_SUBDIRECTORY = "rotation_checker/img"
+IMAGE_SUBDIRECTORY = f"{StepIdentifier.ROTATION_CHECK.step_id}/img"
 
 
 class ImageKitUploader:
@@ -54,6 +55,7 @@ class ImageKitUploader:
             sys.exit(0)
 
     def upload_image(self: Self, image_path: Path) -> bool:
+        logger.info("Uploading image '{}' ...", image_path.as_posix())
         with Path(image_path).open(mode="rb") as image:
             imagekit_options: UploadFileRequestOptions = self.imagekit_options_common
             imagekit_options.folder = image_path.parent.relative_to(Path(self.image_base_path)).as_posix()
@@ -64,20 +66,21 @@ class ImageKitUploader:
         logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
         with tempfile.TemporaryDirectory() as tmpdir:
             logger.info("Created temporary directory '{}'", tmpdir)
-            tmp_path = Path(tmpdir)
+            self.tmp_path = Path(tmpdir)
 
             GithubActionHelper.download_artifact(
                 repo=self.github_repository,
                 workflow_run_id=self.workflow_run_id,
                 artifact_name=self.artifact_name,
-                target_directory=tmp_path,
+                target_directory=self.tmp_path,
             )
 
-            self.image_base_path = Path(tmp_path, IMAGE_SUBDIRECTORY)
+            self.image_base_path = Path(self.tmp_path, IMAGE_SUBDIRECTORY)
 
-            logger.info("Processing Image files in '{}'", tmp_path.as_posix())
+            logger.info("Processing Image files in '{}'", self.tmp_path.as_posix())
 
             images: list[Path] = list(self.image_base_path.glob("**/*.png"))
+            logger.info("Found {} images", len(images))
             if not images:
                 logger.warning("No images found in input_dir '{}'!", self.image_base_path.as_posix())
                 return
@@ -164,7 +167,7 @@ def main() -> None:
         action="store",
         type=str,
         env_var=f"{ENV_VAR_PREFIX}_GITHUB_REPOSITORY",
-        default=os.environ["GITHUB_REPOSITORY"],
+        default=os.environ.get("GITHUB_REPOSITORY", ""),
         help="Repository from which to download the artifact",
     )
     args: configargparse.Namespace = parser.parse_args()
