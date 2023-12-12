@@ -68,7 +68,7 @@ class GithubActionHelper:
 
     def _write_artifacts(self: Self, action_result: ActionResult) -> None:
         if self.output_path:
-            Path.mkdir(Path(self.output_path, action_result.action_id), parents=True, exist_ok=True)
+            Path.mkdir(Path(self.output_path, action_result.action_id), parents=True, exist_ok=True, mode=0o755)
             for artifact_path, artifact_contents in self.artifacts.items():
                 Path.mkdir(Path(self.output_path, action_result.action_id, artifact_path).parent, parents=True, exist_ok=True)
                 with Path(self.output_path, action_result.action_id, artifact_path).open(mode="wb" if isinstance(artifact_contents, bytes) else "w") as f:

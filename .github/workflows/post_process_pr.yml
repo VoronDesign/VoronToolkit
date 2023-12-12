@@ -10,12 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Sanitize the file list
-    - name: Create PR comment
+    - name: Create PR comment 💬
       id: create_pr_comment
       uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
       env:
         PR_HELPER_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
-        PR_HELPER_WORKFLOW_ARTIFACT_NAME: ci_output
+        PR_HELPER_ARTIFACT_NAME: ci_output
         PR_HELPER_GITHUB_REPOSITORY: ${{ github.repository }}
         PR_HELPER_VERBOSE: true
       with:
