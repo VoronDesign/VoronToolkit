@@ -39,6 +39,7 @@ ENV GITHUB_OUTPUT=/dev/null
 ENV PATH="/app/.venv/bin:${PATH}"
 
 COPY entrypoint.sh /app/entrypoint.sh
+RUN ["chmod", "+x", "/app/entrypoint.sh"]
 
 RUN git config --system --replace-all safe.directory '*'
 ENTRYPOINT ["/app/entrypoint.sh"]
