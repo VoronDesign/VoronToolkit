@@ -5,8 +5,8 @@ from typing import Self
 
 from loguru import logger
 
-from voron_ci.utils.github_action_helper import GithubActionHelper
-from voron_ci.utils.logging import init_logging
+from voron_toolkit.utils.github_action_helper import GithubActionHelper
+from voron_toolkit.utils.logging import init_logging
 
 
 class FileHelper:
@@ -48,6 +48,9 @@ def sanitize_file_list() -> None:
     init_logging(verbose=True)
     logger.info("============ Sanitize File List ============")
     file_list: list[str] = os.environ.get("FILE_LIST_SANITIZE_INPUT", "").splitlines()
+    if not file_list:
+        logger.warning("Input file list from env var 'FILE_LIST_SANITIZE_INPUT' is empty")
+        return
     output_file_list: list[str] = [input_file.replace("[", "\\[").replace("]", "\\]") for input_file in file_list]
     gh_helper: GithubActionHelper = GithubActionHelper()
     gh_helper.set_output_multiline(output={"FILE_LIST_SANITIZE_OUTPUT": output_file_list})

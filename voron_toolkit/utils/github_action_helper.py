@@ -12,8 +12,8 @@ from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from githubkit import GitHub, Response
 from loguru import logger
 
-from voron_ci.constants import PR_COMMENT_TAG, StepResult
-from voron_ci.utils.action_summary import ActionSummary
+from voron_toolkit.constants import PR_COMMENT_TAG, StepResult
+from voron_toolkit.utils.action_summary import ActionSummary
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
 OUTPUT_ENV_VAR = "GITHUB_OUTPUT"

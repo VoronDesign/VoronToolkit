@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/voron_docker_toolkit
+  IMAGE_NAME: ${{ github.repository_owner }}/voron_toolkit_docker
 
 jobs:
   build:

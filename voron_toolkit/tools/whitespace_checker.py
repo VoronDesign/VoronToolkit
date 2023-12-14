@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Self
 import configargparse
 from loguru import logger
 
-from voron_ci.constants import StepIdentifier, StepResult
-from voron_ci.utils.action_summary import ActionSummaryTable
-from voron_ci.utils.github_action_helper import ActionResult, GithubActionHelper
-from voron_ci.utils.logging import init_logging
+from voron_toolkit.constants import StepIdentifier, StepResult
+from voron_toolkit.utils.action_summary import ActionSummaryTable
+from voron_toolkit.utils.github_action_helper import ActionResult, GithubActionHelper
+from voron_toolkit.utils.logging import init_logging
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -20,20 +20,13 @@ ENV_VAR_PREFIX = "WHITESPACE_CHECKER"
 class WhitespaceChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.return_status: StepResult = StepResult.SUCCESS
+        self.input_dir = args.input_dir
+        self.input_env_var = args.input_env_var
+        self.input_file_list: list[str] = []
         self.check_summary: list[list[str]] = []
         self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
 
         init_logging(verbose=args.verbose)
-
-        if args.input_dir:
-            logger.info("Using input_dir '{}'", args.input_dir)
-            input_path: Path = Path(Path.cwd(), args.input_dir)
-            input_path_files: Iterator[Path] = Path(Path.cwd(), args.input_dir).glob("**/*")
-            files = [x for x in input_path_files if x.is_file()]
-            self.input_file_list: list[str] = [file_path.relative_to(input_path).as_posix() for file_path in files]
-        else:
-            logger.info("Using input_env_var '{}'", args.input_env_var)
-            self.input_file_list = os.environ.get(args.input_env_var, "").splitlines()
 
     def _check_for_whitespace(self: Self) -> None:
         for input_file in self.input_file_list:
@@ -50,6 +43,15 @@ class WhitespaceChecker:
 
     def run(self: Self) -> None:
         logger.info("============ Whitespace Checker ============")
+        if self.input_dir:
+            logger.info("Using input_dir '{}'", self.input_dir)
+            input_path: Path = Path(Path.cwd(), self.input_dir)
+            input_path_files: Iterator[Path] = Path(Path.cwd(), self.input_dir).glob("**/*")
+            files = [x for x in input_path_files if x.is_file()]
+            self.input_file_list = [file_path.relative_to(input_path).as_posix() for file_path in files]
+        else:
+            logger.info("Using input_env_var '{}'", self.input_env_var)
+            self.input_file_list = os.environ.get(self.input_env_var, "").splitlines()
 
         self._check_for_whitespace()
 
