@@ -1,10 +1,11 @@
 [tool.poetry]
-name = "voron_ci"
+name = "voron_toolkit"
 version = "0"
-description = "A repository & docker container containing all necessary tools to accomplish CI tasks"
+description = "A repository & docker container containing all necessary tools to accomplish CI tasks and provide useful CLI tools"
 authors = ["Florian Heilmann <Florian.Heilmann@gmx.net>"]
 license = "GPLv3"
 readme = "README.md"
+packages = [{include = "voron_toolkit"}]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
@@ -65,12 +66,12 @@ module = [
 ignore_missing_imports = true
 
 [tool.poetry.scripts]
-check-mod-structure = "voron_ci.tools.mod_structure_checker:main"
-check-stl-corruption = "voron_ci.tools.stl_corruption_checker:main"
-check-stl-rotation = "voron_ci.tools.stl_rotation_checker:main"
-check-whitespace = "voron_ci.tools.whitespace_checker:main"
-debug-container = "voron_ci.utils.debug_container:print_container_info"
-generate-readme = "voron_ci.tools.readme_generator:main"
-sanitize-file-list = "voron_ci.utils.file_helper:sanitize_file_list"
-set-pr-comment-labels = "voron_ci.utils.pr_helper:main"
-upload-images = "voron_ci.utils.imagekit_uploader:main"
+check-mod-structure = "voron_toolkit.tools.mod_structure_checker:main"
+check-stl-corruption = "voron_toolkit.tools.stl_corruption_checker:main"
+check-stl-rotation = "voron_toolkit.tools.stl_rotation_checker:main"
+check-whitespace = "voron_toolkit.tools.whitespace_checker:main"
+debug-container = "voron_toolkit.utils.debug_container:print_container_info"
+generate-readme = "voron_toolkit.tools.readme_generator:main"
+sanitize-file-list = "voron_toolkit.utils.file_helper:sanitize_file_list"
+set-pr-comment-labels = "voron_toolkit.utils.pr_helper:main"
+upload-images = "voron_toolkit.utils.imagekit_uploader:main"

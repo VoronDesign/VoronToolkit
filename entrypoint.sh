@@ -4,7 +4,7 @@ set +x
 pid="0"
 
 handle_signal() {
-  echo "Signal!"
+  echo "Signal received!"
   if [ "x${pid}" != "x0" ]; then
     kill -SIGTERM "${pid}"
     wait "${pid}"
@@ -29,7 +29,8 @@ echo "              #############"
 echo "                 #######"
 echo "                    #"
 echo -e "\033[39m"
-echo " VoronDesign docker toolkit ..."
+echo " Welcome to the VoronDesign toolkit docker container!"
+echo " If you encounter any issues, please report them to the VoronDesign team!"
 echo ""
 
 "$@" &

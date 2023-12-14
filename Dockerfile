@@ -10,7 +10,7 @@ RUN poetry config virtualenvs.in-project true
 COPY ./pyproject.toml ./poetry.lock ./README.md /app/
 RUN poetry install --without dev --no-root
 
-COPY voron_ci/ /app/voron_ci
+COPY voron_toolkit/ /app/voron_toolkit
 RUN poetry install --only-root && rm ./pyproject.toml ./poetry.lock
 
 FROM python:3.11.6-slim as test
@@ -21,7 +21,7 @@ RUN pip install poetry==1.7.0
 COPY ./pyproject.toml /app/
 COPY --from=builder /app /app
 RUN poetry install --only dev
-RUN poetry run ruff voron_ci/ && poetry run ruff format --check voron_ci/ && poetry run mypy voron_ci
+RUN poetry run ruff voron_toolkit/ && poetry run ruff format --check voron_toolkit/ && poetry run mypy voron_toolkit
 
 FROM python:3.11.6-slim as final
 

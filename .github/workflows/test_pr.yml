@@ -19,7 +19,7 @@ jobs:
       # Sanitize the file list
       - name: Sanitize file list 🧹
         id: sanitize_file_list
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
           FILE_LIST_SANITIZE_INPUT: ${{ steps.changed-files.outputs.all_changed_files }}
         with:
@@ -39,7 +39,7 @@ jobs:
           echo -n ${{ github.event.number }} > ${{ env.VORON_CI_OUTPUT }}/pr_number.txt
       # Run whitespace checks based on files in the test directory
       - name: Check for whitespace in folders/filenames 🔍
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
           WHITESPACE_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           WHITESPACE_CHECKER_VERBOSE: true
@@ -48,7 +48,7 @@ jobs:
           args: check-whitespace
       - name: Check correct mod/file structure 🔍
         if: '!cancelled()'
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
           MOD_STRUCTURE_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           MOD_STRUCTURE_CHECKER_VERBOSE: true
@@ -58,7 +58,7 @@ jobs:
       # Run the corruption checker
       - name: Check for STL corruption 🔍
         if: '!cancelled()'
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
           CORRUPTION_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           CORRUPTION_CHECKER_VERBOSE: true
@@ -68,7 +68,7 @@ jobs:
       # Run the rotation checker
       - name: Check for incorrect STL rotation 🔍
         if: '!cancelled()'
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
           ROTATION_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           ROTATION_CHECKER_VERBOSE: true
@@ -80,7 +80,7 @@ jobs:
       # Generate a README
       - name: Generate README 📒
         if: '!cancelled()'
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
           README_GENERATOR_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           README_GENERATOR_README: false
