@@ -7,7 +7,7 @@ from typing import Self
 import configargparse
 from loguru import logger
 
-from voron_ci.constants import SUCCESS_LABEL, VORONUSERS_PR_COMMENT_SECTIONS, StepResult
+from voron_ci.constants import SUCCESS_LABEL, VORONUSERS_PR_COMMENT_SECTIONS, StepIdentifier, StepResult
 from voron_ci.utils.github_action_helper import GithubActionHelper
 from voron_ci.utils.logging import init_logging
 
@@ -58,12 +58,13 @@ class PrHelper:
                     Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").exists(),
                 )
                 continue
+            outcome: StepResult = StepResult[Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").read_text()]
+            self.comment_body += f"### {pr_step_identifier.step_name}: {outcome.result_str}\n\n"
             self.comment_body += Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").read_text()
             self.comment_body += "\n\n"
-            outcome: StepResult = StepResult[Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").read_text()]
             if outcome > StepResult.SUCCESS:
                 self.labels.append(pr_step_identifier.step_pr_label)
-        if not self.labels:
+        if not self.labels or self.labels == [StepIdentifier.ROTATION_CHECK.step_pr_label]:
             self.labels.append(SUCCESS_LABEL)
         self.comment_body += CLOSING_BOT_NOTICE
 
@@ -82,8 +83,16 @@ class PrHelper:
 
             self._parse_artifact()
             if self.pr_number > 0:
-                GithubActionHelper.set_labels_on_pull_request(repo=self.github_repository, pull_request_number=self.pr_number, labels=self.labels)
-                GithubActionHelper.update_or_create_pr_comment(repo=self.github_repository, pull_request_number=self.pr_number, comment_body=self.comment_body)
+                GithubActionHelper.set_labels_on_pull_request(
+                    repo=self.github_repository,
+                    pull_request_number=self.pr_number,
+                    labels=self.labels,
+                )
+                GithubActionHelper.update_or_create_pr_comment(
+                    repo=self.github_repository,
+                    pull_request_number=self.pr_number,
+                    comment_body=self.comment_body,
+                )
 
 
 def main() -> None:

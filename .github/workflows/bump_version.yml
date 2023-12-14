@@ -7,17 +7,17 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository_owner }}/voron_docker_toolkit
 
 jobs:
   build:
     permissions:
-      contents: write
+      contents: read
+      packages: write
     runs-on: ubuntu-latest
-    outputs:
-      git_tag: ${{ steps.tag_version.outputs.new_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Bump version and push tag
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.1
@@ -29,30 +29,31 @@ jobs:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: Release ${{ steps.tag_version.outputs.new_tag }}
           body: ${{ steps.tag_version.outputs.changelog }}
-  build-and-push-image:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Build the test stage
+        if: ${{ steps.tag_version.outputs.new_tag != steps.tag_version.outputs.previous_tag }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          target: test
       - name: Log in to the Container registry
+        if: ${{ steps.tag_version.outputs.new_tag != steps.tag_version.outputs.previous_tag }}
         uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract metadata (tags, labels) for Docker
+        if: ${{ steps.tag_version.outputs.new_tag != steps.tag_version.outputs.previous_tag }}
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ needs.build.outputs.git_tag }}
+            type=raw,value=${{ steps.tag_version.outputs.new_tag }}
             type=raw,value=latest
       - name: Build and push Docker image
+        if: ${{ steps.tag_version.outputs.new_tag != steps.tag_version.outputs.previous_tag }}
         uses: docker/build-push-action@v5
         with:
           context: .

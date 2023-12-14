@@ -26,9 +26,10 @@ class STLCorruptionChecker:
         init_logging(verbose=args.verbose)
 
     def run(self: Self) -> None:
+        logger.info("============ STL Corruption Checker & Fixer ============")
         logger.info("Searching for STL files in '{}'", str(self.input_dir))
 
-        stl_paths: list[Path] = FileHelper.find_files(directory=self.input_dir, extension="stl", max_files=40)
+        stl_paths: list[Path] = FileHelper.find_files_by_extension(directory=self.input_dir, extension="stl", max_files=40)
 
         with ThreadPoolExecutor() as pool:
             return_statuses: list[StepResult] = list(pool.map(self._check_stl, stl_paths))
@@ -40,11 +41,10 @@ class STLCorruptionChecker:
         self.gh_helper.finalize_action(
             action_result=ActionResult(
                 action_id=StepIdentifier.CORRUPTION_CHECK.step_id,
-                action_name="STL corruption checker",
+                action_name=StepIdentifier.CORRUPTION_CHECK.step_name,
                 outcome=self.return_status,
                 summary=ActionSummaryTable(
-                    title="STL corruption checker",
-                    columns=["Filename", "Result", "Edges Fixed", "Backwards Edges", "Degenerate Facets", "Facets Removed", "Facets Added", "Facets Reversed"],
+                    columns=["Filename", "Result", "Number of STL fixes applicable "],
                     rows=self.check_summary,
                 ),
             )
@@ -71,33 +71,28 @@ class STLCorruptionChecker:
                 or stl.stats["facets_reversed"] > 0
             ):
                 logger.error("Corrupt STL detected '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
-                self.check_summary.append(
-                    [
-                        stl_file_path.name,
-                        StepResult.FAILURE.result_str,
-                        str(stl.stats["edges_fixed"]),
-                        str(stl.stats["backwards_edges"]),
-                        str(stl.stats["degenerate_facets"]),
-                        str(stl.stats["facets_removed"]),
-                        str(stl.stats["facets_added"]),
-                        str(stl.stats["facets_reversed"]),
-                    ]
+                number_of_errors: int = sum(
+                    int(stl.stats[key]) for key in ["edges_fixed", "backwards_edges", "degenerate_facets", "facets_removed", "facets_added", "facets_reversed"]
                 )
+                self.check_summary.append([stl_file_path.name, StepResult.FAILURE.result_str, str(number_of_errors)])
                 self._write_fixed_stl_file(stl=stl, path=Path(stl_file_path.relative_to(self.input_dir)))
                 return StepResult.FAILURE
             logger.success("STL '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
+            self.check_summary.append(
+                [stl_file_path.name, StepResult.SUCCESS.result_str, "0"],
+            )
             return StepResult.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
-                [stl_file_path.name, StepResult.EXCEPTION.result_str, "0", "0", "0", "0", "0", "0"],
+                [stl_file_path.name, StepResult.EXCEPTION.result_str, "0"],
             )
             return StepResult.EXCEPTION
 
 
 def main() -> None:
     parser: configargparse.ArgumentParser = configargparse.ArgumentParser(
-        prog="VoronDesign STL checker & fixer",
+        prog="VoronDesign STL Corruption Checker & Fixer",
         description="This tool can be used to check a provided folder of STLs and potentially fix them",
     )
     parser.add_argument(

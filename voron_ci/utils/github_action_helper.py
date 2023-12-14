@@ -64,7 +64,8 @@ class GithubActionHelper:
     def _write_step_summary(self: Self, action_result: ActionResult) -> None:
         if self.do_gh_step_summary:
             with Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).open("a") as gh_step_summary:
-                gh_step_summary.write(action_result.summary.to_markdown())
+                gh_step_summary.write(f"### {action_result.action_name}\n\n")
+                gh_step_summary.write(action_result.summary.to_markdown(result_ok=False))
 
     def _write_artifacts(self: Self, action_result: ActionResult) -> None:
         if self.output_path:
@@ -74,7 +75,7 @@ class GithubActionHelper:
                 with Path(self.output_path, action_result.action_id, artifact_path).open(mode="wb" if isinstance(artifact_contents, bytes) else "w") as f:
                     f.write(artifact_contents)
             with Path(self.output_path, action_result.action_id, "summary.md").open("w") as f:
-                f.write(action_result.summary.to_markdown())
+                f.write(action_result.summary.to_markdown(result_ok=action_result.outcome == StepResult.SUCCESS))
             with Path(self.output_path, action_result.action_id, "outcome.txt").open("w") as f:
                 f.write(action_result.outcome.name)
 
@@ -85,7 +86,7 @@ class GithubActionHelper:
 
         result_ok = StepResult.WARNING if self.ignore_warnings else StepResult.SUCCESS
         if action_result.outcome > result_ok:
-            logger.error("Error detected while performing action '{}' (result: '{}' > '{}')!", action_result.action_name, action_result.outcome, result_ok)
+            logger.error("Error detected while performing action '{}' (result: '{}')!", action_result.action_name, action_result.outcome)
             sys.exit(255)
 
     @classmethod

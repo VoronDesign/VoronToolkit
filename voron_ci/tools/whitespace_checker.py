@@ -1,6 +1,5 @@
 import os
 import string
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
@@ -26,12 +25,6 @@ class WhitespaceChecker:
 
         init_logging(verbose=args.verbose)
 
-        if (args.input_dir and args.input_env_var) or (not args.input_dir and not args.input_env_var):
-            logger.error(
-                "Please provide either '--input_dir' (env: WHITESPACE_CHECKER_INPUT_DIR) or '--input_env_var' (env: WHITESPACE_CHECKER_ENV_VAR), not both!"
-            )
-            sys.exit(255)
-
         if args.input_dir:
             logger.info("Using input_dir '{}'", args.input_dir)
             input_path: Path = Path(Path.cwd(), args.input_dir)
@@ -56,17 +49,16 @@ class WhitespaceChecker:
                 self.return_status = StepResult.FAILURE
 
     def run(self: Self) -> None:
-        logger.info("Starting whitespace check ...")
+        logger.info("============ Whitespace Checker ============")
 
         self._check_for_whitespace()
 
         self.gh_helper.finalize_action(
             action_result=ActionResult(
                 action_id=StepIdentifier.WHITESPACE_CHECK.step_id,
-                action_name="Whitespace check",
+                action_name=StepIdentifier.WHITESPACE_CHECK.step_name,
                 outcome=self.return_status,
                 summary=ActionSummaryTable(
-                    title="Whitespace check",
                     columns=["File/Folder", "Reason"],
                     rows=self.check_summary,
                 ),
@@ -79,20 +71,19 @@ def main() -> None:
         prog="VoronDesign VoronUsers whitespace checker",
         description="This tool is used to check changed files inside an env var for whitespace. The list is also prepared for sparse-checkout",
     )
-    parser.add_argument(
+    input_grp = parser.add_mutually_exclusive_group(required=True)
+    input_grp.add_argument(
         "-i",
         "--input_dir",
-        required=False,
         action="store",
         type=str,
         env_var=f"{ENV_VAR_PREFIX}_INPUT_DIR",
         help="Directory containing files to be checked",
         default="",
     )
-    parser.add_argument(
+    input_grp.add_argument(
         "-e",
         "--input_env_var",
-        required=False,
         action="store",
         type=str,
         env_var=f"{ENV_VAR_PREFIX}_INPUT_ENV_VAR",

@@ -39,6 +39,7 @@ class ReadmeGenerator:
         init_logging(verbose=args.verbose)
 
     def run(self: Self) -> None:
+        logger.info("============ README Generator ============")
         logger.info("ReadmeGenerator starting up readme: '{}', json: '{}', input_dir: '{}'", self.readme, self.json, self.input_dir.as_posix())
         yaml_list = Path(self.input_dir).glob("**/.metadata.yml")
         mods: list[dict[str, Any]] = []
@@ -89,10 +90,9 @@ class ReadmeGenerator:
         self.gh_helper.finalize_action(
             action_result=ActionResult(
                 action_id=StepIdentifier.README_GENERATOR.step_id,
-                action_name="Readme generator",
+                action_name=StepIdentifier.README_GENERATOR.step_name,
                 outcome=StepResult.SUCCESS,
                 summary=ActionSummaryTable(
-                    title="Readme preview",
                     columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"],
                     rows=readme_rows,
                 ),
@@ -102,7 +102,7 @@ class ReadmeGenerator:
 
 def main() -> None:
     parser: configargparse.ArgumentParser = configargparse.ArgumentParser(
-        prog="VoronDesign VoronUsers readme generator",
+        prog="VoronDesign README Generator",
         description="This tool is used to generate the readme and json overview files for VORONUsers",
     )
     parser.add_argument(
