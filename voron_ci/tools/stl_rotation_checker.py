@@ -22,7 +22,8 @@ from voron_ci.utils.logging import init_logging
 
 TWEAK_THRESHOLD = 0.1
 ENV_VAR_PREFIX = "ROTATION_CHECKER"
-STL_THUMB_IMAGE_SIZE = 500
+STL_THUMB_BINARY = "stl-thumb"
+STL_THUMB_ARGS = "-a fxaa -s 500"
 
 
 class STLRotationChecker:
@@ -85,7 +86,7 @@ class STLRotationChecker:
         # Generate the thumbnail using stl-thumb
         # Note: When run entirely headless, stl-thumb will return a non-zero exit code, but still produce the image
         stl_thumb_result: subprocess.CompletedProcess = subprocess.run(  # noqa: PLW1510
-            f"stl-thumb {stl_in_path.as_posix()} -a fxaa -s {STL_THUMB_IMAGE_SIZE} -",
+            f"{STL_THUMB_BINARY} {stl_in_path.as_posix()} {STL_THUMB_ARGS} -",
             shell=True,  # noqa: S602
             capture_output=True,
         )
@@ -100,9 +101,10 @@ class STLRotationChecker:
         return f'[<img src="{image_address}" width="100" height="100">]({image_address})'
 
     def run(self: Self) -> None:
+        logger.info("============ STL Rotation Checker & Fixer ============")
         logger.info("Searching for STL files in '{}'", str(self.input_dir))
 
-        stl_paths: list[Path] = FileHelper.find_files(directory=self.input_dir, extension="stl", max_files=40)
+        stl_paths: list[Path] = FileHelper.find_files_by_extension(directory=self.input_dir, extension="stl", max_files=40)
 
         with ThreadPoolExecutor() as pool:
             return_statuses: list[StepResult] = list(pool.map(self._check_stl, stl_paths))
@@ -115,10 +117,9 @@ class STLRotationChecker:
         self.gh_helper.finalize_action(
             action_result=ActionResult(
                 action_id=StepIdentifier.ROTATION_CHECK.step_id,
-                action_name="STL rotation checker",
+                action_name=StepIdentifier.ROTATION_CHECK.step_name,
                 outcome=self.return_status,
                 summary=ActionSummaryTable(
-                    title="STL rotation checker",
                     columns=["Filename", "Result", "Original orientation", "Suggested orientation"],
                     rows=self.check_summary,
                 ),
@@ -139,6 +140,7 @@ class STLRotationChecker:
                 return StepResult.WARNING
             rotated_mesh: Tweak = Tweak(mesh_objects[0]["mesh"], extended_mode=True, verbose=False, min_volume=True)
 
+            original_image_url: str = self._make_markdown_image(stl_file_path=stl_file_path.relative_to(self.input_dir))
             if rotated_mesh.rotation_angle >= TWEAK_THRESHOLD:
                 logger.warning("Found rotation suggestion for STL '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
                 output_stl_path: Path = Path(
@@ -150,7 +152,6 @@ class STLRotationChecker:
 
                 self.gh_helper.set_artifact(file_name=output_stl_path.as_posix(), file_contents=rotated_stl_bytes)
 
-                original_image_url: str = self._make_markdown_image(stl_file_path=stl_file_path.relative_to(self.input_dir))
                 rotated_image_url: str = self._make_markdown_image(stl_file_path=output_stl_path, stl_file_contents=rotated_stl_bytes)
 
                 self.check_summary.append(
@@ -162,8 +163,10 @@ class STLRotationChecker:
                     ],
                 )
                 return StepResult.WARNING
-
             logger.success("File '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
+            self.check_summary.append(
+                [stl_file_path.name, StepResult.SUCCESS.result_str, original_image_url, ""],
+            )
             return StepResult.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking {}", stl_file_path.relative_to(self.input_dir).as_posix())

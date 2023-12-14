@@ -5,20 +5,18 @@ from typing import Self
 
 class ActionSummary(ABC):
     @abstractmethod
-    def to_markdown(self: Self) -> str:
+    def to_markdown(self: Self, *, result_ok: bool = True) -> str:
         pass
 
 
 @dataclass
 class ActionSummaryTable(ActionSummary):
-    title: str
     columns: list[str]
     rows: list[list[str]]
 
-    def to_markdown(self: Self) -> str:
+    def to_markdown(self: Self, *, result_ok: bool = True) -> str:
         return (
-            f"### {self.title}\n\n"
-            f"<details{' open' if self.rows else ''}>\n"
+            f"<details{' open' if not result_ok else ''}>\n"
             f"<summary>Result (items: {len(self.rows)})</summary>\n\n"
             f"{self.create_markdown_table(self.columns, self.rows)}\n"
             f"</details>\n"

@@ -24,11 +24,11 @@ class StepResult(StepResultCodeStr, Enum):
 
 
 class StepIdentifier(StepIdName, Enum):
-    WHITESPACE_CHECK = StepIdName(step_id="whitespace_check", step_name="Whitespace checker", step_pr_label="Issue: Whitespace")
-    ROTATION_CHECK = StepIdName(step_id="rotation_check", step_name="STL rotation checker", step_pr_label="Issue: STL Rotation")
     CORRUPTION_CHECK = StepIdName(step_id="corruption_check", step_name="STL corruption checker", step_pr_label="Issue: STL Corruption")
-    README_GENERATOR = StepIdName(step_id="readme_generator", step_name="Readme generator", step_pr_label="Issue: Readme")
     MOD_STRUCTURE_CHECK = StepIdName(step_id="mod_structure_check", step_name="Mod structure checker", step_pr_label="Issue: Mod Structure")
+    README_GENERATOR = StepIdName(step_id="readme_generator", step_name="Readme generator", step_pr_label="Issue: Readme")
+    ROTATION_CHECK = StepIdName(step_id="rotation_check", step_name="STL rotation checker", step_pr_label="Info: Possible STL rotation issue")
+    WHITESPACE_CHECK = StepIdName(step_id="whitespace_check", step_name="Whitespace checker", step_pr_label="Issue: Whitespace")
 
 
 VORONUSERS_PR_COMMENT_SECTIONS: list[StepIdentifier] = [

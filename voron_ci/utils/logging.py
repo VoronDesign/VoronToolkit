@@ -10,4 +10,4 @@ def init_logging(*, verbose: bool) -> None:
     loguru.logger.level("WARNING", color="<yellow>", icon="⚠️")
     loguru.logger.level("ERROR", color="<red>", icon="❌")
     loguru.logger.level("CRITICAL", color="<red><bold>", icon="💀")
-    loguru.logger.add(sys.stderr, level="INFO" if verbose else "WARN", colorize=True, format="<level> {level.icon} </level>- {message}")
+    loguru.logger.add(sys.stderr, level="INFO" if verbose else "WARNING", colorize=True, format="<level> {level.icon} </level>- {message}")
