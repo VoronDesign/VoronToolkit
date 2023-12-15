@@ -136,7 +136,7 @@ class STLRotationChecker:
             mesh_objects: dict[int, Any] = FileHandler().load_mesh(inputfile=stl_file_path.as_posix())
             if len(mesh_objects.items()) > 1:
                 logger.warning("File '{}' contains multiple objects and is therefore skipped!", stl_file_path.relative_to(self.input_dir).as_posix())
-                self.check_summary.append([stl_file_path.name, StepResult.WARNING.result_str, "", ""])
+                self.check_summary.append([stl_file_path.name, StepResult.WARNING.result_icon, "", ""])
                 return StepResult.WARNING
             rotated_mesh: Tweak = Tweak(mesh_objects[0]["mesh"], extended_mode=True, verbose=False, min_volume=True)
 
@@ -157,7 +157,7 @@ class STLRotationChecker:
                 self.check_summary.append(
                     [
                         stl_file_path.name,
-                        StepResult.WARNING.result_str,
+                        StepResult.WARNING.result_icon,
                         original_image_url,
                         rotated_image_url,
                     ],
@@ -165,12 +165,12 @@ class STLRotationChecker:
                 return StepResult.WARNING
             logger.success("File '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
-                [stl_file_path.name, StepResult.SUCCESS.result_str, original_image_url, ""],
+                [stl_file_path.name, StepResult.SUCCESS.result_icon, original_image_url, ""],
             )
             return StepResult.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking {}", stl_file_path.relative_to(self.input_dir).as_posix())
-            self.check_summary.append([stl_file_path.name, StepResult.EXCEPTION.result_str, "", ""])
+            self.check_summary.append([stl_file_path.name, StepResult.EXCEPTION.result_icon, "", ""])
             return StepResult.EXCEPTION
 
 

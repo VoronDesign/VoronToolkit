@@ -49,7 +49,11 @@ class ModStructureChecker:
             if not Path(mod_folder, ".metadata.yml").exists():
                 logger.error("Mod '{}' is missing a metadata file!", mod_folder_relative)
                 self.check_summary.append(
-                    [mod_folder_relative, StepResult.FAILURE.result_str, FileErrors.mod_missing_metadata.value.format(mod_folder_relative)]
+                    [
+                        mod_folder_relative,
+                        f"{StepResult.FAILURE.result_icon} {StepResult.FAILURE.name}",
+                        FileErrors.mod_missing_metadata.value.format(mod_folder_relative),
+                    ]
                 )
                 result = StepResult.FAILURE
                 continue
@@ -62,7 +66,7 @@ class ModStructureChecker:
                 self.check_summary.append(
                     [
                         Path(mod_folder, ".metadata.yml").relative_to(self.input_dir).as_posix(),
-                        StepResult.FAILURE.result_str,
+                        f"{StepResult.FAILURE.result_icon} {StepResult.FAILURE.name}",
                         FileErrors.mod_has_invalid_metadata_file.value.format(mod_folder),
                     ]
                 )
@@ -73,7 +77,7 @@ class ModStructureChecker:
                 self.check_summary.append(
                     [
                         Path(mod_folder, ".metadata.yml").relative_to(self.input_dir).as_posix(),
-                        StepResult.FAILURE.result_str,
+                        f"{StepResult.FAILURE.result_icon} {StepResult.FAILURE.name}",
                         FileErrors.mod_has_invalid_metadata_file.value.format(mod_folder_relative),
                     ]
                 )
@@ -83,7 +87,11 @@ class ModStructureChecker:
             if "cad" in metadata and not metadata["cad"]:
                 logger.warning("Mod '{}' has no CAD files!", mod_folder)
                 self.check_summary.append(
-                    [mod_folder_relative, StepResult.FAILURE.result_str, FileErrors.mod_has_no_cad_files.value.format(mod_folder_relative)]
+                    [
+                        mod_folder_relative,
+                        f"{StepResult.FAILURE.result_icon} {StepResult.FAILURE.name}",
+                        FileErrors.mod_has_no_cad_files.value.format(mod_folder_relative),
+                    ]
                 )
                 result = StepResult.FAILURE
 
@@ -97,12 +105,12 @@ class ModStructureChecker:
                         self.check_summary.append(
                             [
                                 mod_folder_relative,
-                                StepResult.FAILURE.result_str,
+                                f"{StepResult.FAILURE.result_icon} {StepResult.FAILURE.name}",
                                 FileErrors.file_from_metadata_missing.value.format(metadata_file),
                             ]
                         )
                         result = StepResult.FAILURE
-            self.check_summary.append([mod_folder_relative, StepResult.SUCCESS.result_str, ""])
+            self.check_summary.append([mod_folder_relative, f"{StepResult.SUCCESS.result_icon} {StepResult.SUCCESS.name}", ""])
             logger.success("Folder '{}' OK!", mod_folder_relative)
         self.return_status = result
 
@@ -112,7 +120,13 @@ class ModStructureChecker:
         result: StepResult = StepResult.SUCCESS
         for file_folder in files_folders:
             logger.error("File '{}' outside mod folder structure!", file_folder)
-            self.check_summary.append([file_folder.relative_to(self.input_dir).as_posix(), FileErrors.file_outside_mod_folder.value.format(file_folder)])
+            self.check_summary.append(
+                [
+                    file_folder.relative_to(self.input_dir).as_posix(),
+                    f"{StepResult.FAILURE.result_icon} {StepResult.FAILURE.name}",
+                    FileErrors.file_outside_mod_folder.value.format(file_folder),
+                ]
+            )
             result = StepResult.FAILURE
         if result == StepResult.SUCCESS:
             logger.success("Shallow file check OK!")

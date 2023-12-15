@@ -74,18 +74,18 @@ class STLCorruptionChecker:
                 number_of_errors: int = sum(
                     int(stl.stats[key]) for key in ["edges_fixed", "backwards_edges", "degenerate_facets", "facets_removed", "facets_added", "facets_reversed"]
                 )
-                self.check_summary.append([stl_file_path.name, StepResult.FAILURE.result_str, str(number_of_errors)])
+                self.check_summary.append([stl_file_path.name, f"{StepResult.FAILURE.result_icon} {StepResult.FAILURE.name}", str(number_of_errors)])
                 self._write_fixed_stl_file(stl=stl, path=Path(stl_file_path.relative_to(self.input_dir)))
                 return StepResult.FAILURE
             logger.success("STL '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
-                [stl_file_path.name, StepResult.SUCCESS.result_str, "0"],
+                [stl_file_path.name, StepResult.SUCCESS.result_icon, "0"],
             )
             return StepResult.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
-                [stl_file_path.name, StepResult.EXCEPTION.result_str, "0"],
+                [stl_file_path.name, StepResult.EXCEPTION.result_icon, "0"],
             )
             return StepResult.EXCEPTION
 

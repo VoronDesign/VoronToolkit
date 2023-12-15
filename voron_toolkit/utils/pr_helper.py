@@ -60,9 +60,9 @@ class PrHelper:
                 self.labels.add(CI_ERROR_LABEL)
                 continue
             outcome: StepResult = StepResult[Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").read_text()]
-            self.comment_body += f"### {pr_step_identifier.step_name}: {outcome.result_str}\n\n"
+            self.comment_body += f"#### {pr_step_identifier.step_name}: {outcome.result_icon}\n\n"
             self.comment_body += Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").read_text()
-            self.comment_body += "\n\n"
+            self.comment_body += "\n\n---\n\n"
             if outcome > StepResult.SUCCESS:
                 self.labels.add(CI_FAILURE_LABEL)
         if not self.labels:

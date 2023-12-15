@@ -76,7 +76,7 @@ jobs:
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          README_GENERATOR_README: false
+          README_GENERATOR_MARKDOWN: false
           README_GENERATOR_JSON: false
         with:
           args: generate-readme

@@ -9,7 +9,7 @@ PR_COMMENT_TAG: str = "<!-- voron_docker_toolkit -->"
 
 class StepResultCodeStr(NamedTuple):
     result_code: int
-    result_str: str
+    result_icon: str
 
 
 class StepIdName(NamedTuple):
@@ -18,10 +18,10 @@ class StepIdName(NamedTuple):
 
 
 class StepResult(StepResultCodeStr, Enum):
-    SUCCESS = StepResultCodeStr(result_code=0, result_str="✅ SUCCESS")
-    WARNING = StepResultCodeStr(result_code=1, result_str="⚠️ WARNING")
-    FAILURE = StepResultCodeStr(result_code=2, result_str="❌ FAILURE")
-    EXCEPTION = StepResultCodeStr(result_code=3, result_str="💀 EXCEPTION")
+    SUCCESS = StepResultCodeStr(result_code=0, result_icon="✅")
+    WARNING = StepResultCodeStr(result_code=1, result_icon="⚠️")
+    FAILURE = StepResultCodeStr(result_code=2, result_icon="❌")
+    EXCEPTION = StepResultCodeStr(result_code=3, result_icon="💀")
 
 
 class StepIdentifier(StepIdName, Enum):

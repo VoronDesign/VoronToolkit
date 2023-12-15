@@ -1,14 +1,18 @@
 import json
 import textwrap
+from importlib.resources import files
 from pathlib import Path
 from typing import Any, Self
 
 import configargparse
+import jsonschema
 import yaml
 from loguru import logger
 
+from voron_toolkit import resources
 from voron_toolkit.constants import StepIdentifier, StepResult
 from voron_toolkit.utils.action_summary import ActionSummaryTable
+from voron_toolkit.utils.file_helper import FileHelper
 from voron_toolkit.utils.github_action_helper import ActionResult, GithubActionHelper
 from voron_toolkit.utils.logging import init_logging
 
@@ -33,30 +37,62 @@ class ReadmeGenerator:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.json: bool = args.json
-        self.readme: bool = args.readme
+        self.markdown: bool = args.markdown
         self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=False)
 
         init_logging(verbose=args.verbose)
 
     def run(self: Self) -> None:
         logger.info("============ README Generator ============")
-        logger.info("ReadmeGenerator starting up readme: '{}', json: '{}', input_dir: '{}'", self.readme, self.json, self.input_dir.as_posix())
-        yaml_list = Path(self.input_dir).glob("**/.metadata.yml")
+        logger.info("ReadmeGenerator starting up (markdown: '{}', json: '{}', input_dir: '{}')", self.markdown, self.json, self.input_dir.as_posix())
+        yaml_list: list[Path] = FileHelper.find_files_by_name(self.input_dir, ".metadata.yml")
+        schema: dict[str, Any] = json.loads(files(resources).joinpath("voronusers_metadata_schema.json").read_text())
+        result: StepResult = StepResult.SUCCESS
         mods: list[dict[str, Any]] = []
         for yml_file in sorted(yaml_list):
-            logger.info("Parsing '{}'", yml_file.relative_to(self.input_dir).parent.as_posix())
-            with Path(yml_file).open("r") as f:
-                content = yaml.safe_load(f)
+            mod_path: str = yml_file.relative_to(self.input_dir).parent.as_posix()
+            try:
+                metadata: dict[str, Any] = yaml.safe_load(yml_file.read_text())
+                jsonschema.validate(instance=metadata, schema=schema)
+            except (yaml.YAMLError, yaml.scanner.ScannerError) as e:
+                logger.error("YAML error in metadata file of mod '{}': {}", mod_path, e)
+                result = StepResult.FAILURE
                 mods.append(
                     {
-                        "path": yml_file.relative_to(self.input_dir).parent.as_posix(),
-                        "title": content["title"],
+                        "path": mod_path,
+                        "title": f"{StepResult.FAILURE.result_icon} Error loading yaml file",
                         "creator": yml_file.relative_to(self.input_dir).parts[0],
-                        "description": content["description"],
-                        "printer_compatibility": f'{", ".join(sorted(content["printer_compatibility"]))}',
-                        "last_changed": GithubActionHelper.last_commit_timestamp(file_or_directory=yml_file.parent),
+                        "description": "",
+                        "printer_compatibility": "",
+                        "last_changed": "",
                     }
                 )
+                continue
+            except jsonschema.ValidationError as e:
+                logger.error("Validation error in metadata file of mod '{}': {}", mod_path, e.message)
+                mods.append(
+                    {
+                        "path": mod_path,
+                        "title": f"{StepResult.FAILURE.result_icon} Error validating yaml file",
+                        "creator": yml_file.relative_to(self.input_dir).parts[0],
+                        "description": "",
+                        "printer_compatibility": "",
+                        "last_changed": "",
+                    }
+                )
+                result = StepResult.FAILURE
+                continue
+            logger.success("Mod '{}' OK!", mod_path)
+            mods.append(
+                {
+                    "path": mod_path,
+                    "title": metadata["title"],
+                    "creator": yml_file.relative_to(self.input_dir).parts[0],
+                    "description": metadata["description"],
+                    "printer_compatibility": f'{", ".join(sorted(metadata["printer_compatibility"]))}',
+                    "last_changed": GithubActionHelper.last_commit_timestamp(file_or_directory=yml_file.parent),
+                }
+            )
 
         readme_rows: list[list[str]] = []
         prev_username: str = ""
@@ -73,11 +109,11 @@ class ReadmeGenerator:
             )
             prev_username = mod["creator"]
 
-        if self.json:
+        if self.json and (result == StepResult.SUCCESS):
             logger.info("Writing json file!")
             self.gh_helper.set_artifact(file_name="mods.json", file_contents=json.dumps(mods, indent=4))
 
-        if self.readme:
+        if self.markdown and (result == StepResult.SUCCESS):
             logger.info("Writing README file!")
             self.gh_helper.set_artifact(
                 file_name="README.md",
@@ -91,7 +127,7 @@ class ReadmeGenerator:
             action_result=ActionResult(
                 action_id=StepIdentifier.README_GENERATOR.step_id,
                 action_name=StepIdentifier.README_GENERATOR.step_name,
-                outcome=StepResult.SUCCESS,
+                outcome=result,
                 summary=ActionSummaryTable(
                     columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"],
                     rows=readme_rows,
@@ -116,11 +152,11 @@ def main() -> None:
     )
     parser.add_argument(
         "-r",
-        "--readme",
+        "--markdown",
         required=False,
         action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_README",
-        help="Whether to generate a readme file",
+        env_var=f"{ENV_VAR_PREFIX}_MARKDOWN",
+        help="Whether to generate a readme markdown file",
         default=False,
     )
     parser.add_argument(
