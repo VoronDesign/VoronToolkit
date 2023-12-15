@@ -63,7 +63,7 @@ jobs:
       - name: Generate README
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          README_GENERATOR_README: true
+          README_GENERATOR_MARKDOWN: true
           README_GENERATOR_JSON: true
         with:
           args: generate-readme
