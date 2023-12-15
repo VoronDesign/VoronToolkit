@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         with:
           ref: ${{ github.ref }}
-          path: ${{ github.workspace }}/sparse-checkout
+          path: ${{ github.workspace }}
           sparse-checkout: ${{ steps.sanitize_file_list.outputs.FILE_LIST_SANITIZE_OUTPUT }}
           sparse-checkout-cone-mode: false
       - name: Store PR number 🔢
@@ -41,7 +41,7 @@ jobs:
       - name: Check for whitespace in folders/filenames 🔍
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          WHITESPACE_CHECKER_INPUT_DIR: ${{ github.workspace }}/sparse-checkout/tests/test_repository_root/printer_mods
+          WHITESPACE_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           WHITESPACE_CHECKER_VERBOSE: true
           WHITESPACE_CHECKER_IGNORE_WARNINGS: false
         with:
@@ -50,7 +50,7 @@ jobs:
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          MOD_STRUCTURE_CHECKER_INPUT_DIR: ${{ github.workspace }}/sparse-checkout/tests/test_repository_root/printer_mods
+          MOD_STRUCTURE_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           MOD_STRUCTURE_CHECKER_VERBOSE: true
           MOD_STRUCTURE_CHECKER_IGNORE_WARNINGS: false
         with:
@@ -60,7 +60,7 @@ jobs:
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          CORRUPTION_CHECKER_INPUT_DIR: ${{ github.workspace }}/sparse-checkout/tests/test_repository_root/printer_mods
+          CORRUPTION_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           CORRUPTION_CHECKER_VERBOSE: true
           CORRUPTION_CHECKER_IGNORE_WARNINGS: true
         with:
@@ -70,7 +70,7 @@ jobs:
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          ROTATION_CHECKER_INPUT_DIR: ${{ github.workspace }}/sparse-checkout/tests/test_repository_root/printer_mods
+          ROTATION_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           ROTATION_CHECKER_VERBOSE: true
           ROTATION_CHECKER_IGNORE_WARNINGS: true
           ROTATION_CHECKER_IMAGEKIT_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
@@ -82,7 +82,7 @@ jobs:
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          README_GENERATOR_INPUT_DIR: ${{ github.workspace }}/sparse-checkout/tests/test_repository_root/printer_mods
+          README_GENERATOR_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           README_GENERATOR_README: false
           README_GENERATOR_VERBOSE: true
           README_GENERATOR_JSON: false
