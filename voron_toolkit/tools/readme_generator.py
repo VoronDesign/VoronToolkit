@@ -111,7 +111,7 @@ def main() -> None:
         required=True,
         action="store",
         type=str,
-        env_var=f"{ENV_VAR_PREFIX}_INPUT_DIR",
+        env_var="VORON_TOOLKIT_INPUT_DIR",
         help="Base directory to search for metadata files",
     )
     parser.add_argument(
@@ -137,7 +137,7 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
+        env_var="VORON_TOOLKIT_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )

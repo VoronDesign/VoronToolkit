@@ -7,7 +7,7 @@ from typing import Self
 import configargparse
 from loguru import logger
 
-from voron_toolkit.constants import SUCCESS_LABEL, VORONUSERS_PR_COMMENT_SECTIONS, StepIdentifier, StepResult
+from voron_toolkit.constants import CI_ERROR_LABEL, CI_FAILURE_LABEL, CI_PASSED_LABEL, VORONUSERS_PR_COMMENT_SECTIONS, StepResult
 from voron_toolkit.utils.github_action_helper import GithubActionHelper
 from voron_toolkit.utils.logging import init_logging
 
@@ -35,7 +35,7 @@ class PrHelper:
         self.pr_number: int = -1
 
         self.comment_body: str = PREAMBLE
-        self.labels: list[str] = []
+        self.labels: set[str] = set()
 
         init_logging(verbose=args.verbose)
 
@@ -57,15 +57,16 @@ class PrHelper:
                     Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").exists(),
                     Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").exists(),
                 )
+                self.labels.add(CI_ERROR_LABEL)
                 continue
             outcome: StepResult = StepResult[Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").read_text()]
             self.comment_body += f"### {pr_step_identifier.step_name}: {outcome.result_str}\n\n"
             self.comment_body += Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").read_text()
             self.comment_body += "\n\n"
             if outcome > StepResult.SUCCESS:
-                self.labels.append(pr_step_identifier.step_pr_label)
-        if not self.labels or self.labels == [StepIdentifier.ROTATION_CHECK.step_pr_label]:
-            self.labels.append(SUCCESS_LABEL)
+                self.labels.add(CI_FAILURE_LABEL)
+        if not self.labels:
+            self.labels.add(CI_PASSED_LABEL)
         self.comment_body += CLOSING_BOT_NOTICE
 
     def run(self: Self) -> None:
@@ -86,7 +87,7 @@ class PrHelper:
                 GithubActionHelper.set_labels_on_pull_request(
                     repo=self.github_repository,
                     pull_request_number=self.pr_number,
-                    labels=self.labels,
+                    labels=list(self.labels),
                 )
                 GithubActionHelper.update_or_create_pr_comment(
                     repo=self.github_repository,
@@ -133,7 +134,7 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
+        env_var="VORON_TOOLKIT_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )
