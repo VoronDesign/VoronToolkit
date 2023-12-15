@@ -21,7 +21,7 @@ Please find below the results of the automated PR checker:
 CLOSING_BOT_NOTICE = """
 
 I am a 🤖, this comment was generated automatically!
-
+*Made with ❤️ by the VoronDesign GitHub Team*
 """
 
 
