@@ -78,7 +78,7 @@ class PrHelper:
             outcome = StepResult[Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").read_text()]
             self.comment_body += f"#### {pr_step_identifier.step_name}: {outcome.result_icon}\n\n"
             self.comment_body += f"<details{' open' if outcome != StepResult.SUCCESS else ''}>\n"
-            self.comment_body += f"<summary>{pr_step_identifier.step_name} Details</summary>\n\n"
+            self.comment_body += "<summary>Details</summary>\n\n"
             self.comment_body += Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").read_text()
             self.comment_body += "</details>\n"
             self.comment_body += "\n\n---\n\n"
