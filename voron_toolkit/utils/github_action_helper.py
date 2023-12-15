@@ -12,13 +12,13 @@ from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from githubkit import GitHub, Response
 from loguru import logger
 
-from voron_ci.constants import PR_COMMENT_TAG, StepResult
-from voron_ci.utils.action_summary import ActionSummary
+from voron_toolkit.constants import PR_COMMENT_TAG, StepResult
+from voron_toolkit.utils.action_summary import ActionSummary
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
 OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
-VORON_CI_OUTPUT_ENV_VAR = "VORON_CI_OUTPUT"
-VORON_CI_STEP_SUMMARY_ENV_VAR = "VORON_CI_STEP_SUMMARY"
+VORON_CI_OUTPUT_ENV_VAR = "VORON_TOOLKIT_OUTPUT_DIR"
+VORON_CI_STEP_SUMMARY_ENV_VAR = "VORON_TOOLKIT_GH_STEP_SUMMARY"
 VORON_CI_GITHUB_TOKEN_ENV_VAR = "VORON_CI_GITHUB_TOKEN"  # noqa: S105
 
 
@@ -64,6 +64,7 @@ class GithubActionHelper:
     def _write_step_summary(self: Self, action_result: ActionResult) -> None:
         if self.do_gh_step_summary:
             with Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).open("a") as gh_step_summary:
+                gh_step_summary.write(f"### {action_result.action_name}\n\n")
                 gh_step_summary.write(action_result.summary.to_markdown())
 
     def _write_artifacts(self: Self, action_result: ActionResult) -> None:
@@ -76,7 +77,10 @@ class GithubActionHelper:
             with Path(self.output_path, action_result.action_id, "summary.md").open("w") as f:
                 f.write(action_result.summary.to_markdown())
             with Path(self.output_path, action_result.action_id, "outcome.txt").open("w") as f:
-                f.write(action_result.outcome.name)
+                if action_result.outcome == StepResult.SUCCESS or (action_result.outcome == StepResult.WARNING and self.ignore_warnings):
+                    f.write(StepResult.SUCCESS.name)
+                else:
+                    f.write(action_result.outcome.name)
 
     def finalize_action(self: Self, action_result: ActionResult) -> None:
         self._write_outputs()
@@ -85,7 +89,7 @@ class GithubActionHelper:
 
         result_ok = StepResult.WARNING if self.ignore_warnings else StepResult.SUCCESS
         if action_result.outcome > result_ok:
-            logger.error("Error detected while performing action '{}' (result: '{}' > '{}')!", action_result.action_name, action_result.outcome, result_ok)
+            logger.error("Error detected while performing action '{}' (result: '{}')!", action_result.action_name, action_result.outcome)
             sys.exit(255)
 
     @classmethod
@@ -93,7 +97,7 @@ class GithubActionHelper:
         github_api_url = f"https://api.github.com/repos/{github_repository}/actions/runs/{github_run_id}/jobs"
 
         headers = {
-            "Authorization": f"token {os.environ['VORON_CI_GITHUB_TOKEN']}",
+            "Authorization": f"token {os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR]}",
             "Accept": "application/vnd.github.v3+json",
             "X-GitHub-Api-Version": "2022-11-28",
         }
@@ -130,12 +134,12 @@ class GithubActionHelper:
 
     @classmethod
     def set_labels_on_pull_request(cls: type[Self], repo: str, pull_request_number: int, labels: list[str]) -> None:
-        github = GitHub(os.environ["VORON_CI_GITHUB_TOKEN"])
+        github = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
         github.rest.issues.set_labels(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number, labels=labels)
 
     @classmethod
     def download_artifact(cls: type[Self], repo: str, workflow_run_id: str, artifact_name: str, target_directory: Path) -> None:
-        github: GitHub = GitHub(os.environ["VORON_CI_GITHUB_TOKEN"])
+        github: GitHub = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
         response: Response = github.rest.actions.list_workflow_run_artifacts(owner=repo.split("/")[0], repo=repo.split("/")[1], run_id=int(workflow_run_id))
 
         artifacts: list[dict[str, str]] = response.json().get("artifacts", [])
@@ -172,7 +176,7 @@ class GithubActionHelper:
 
     @classmethod
     def update_or_create_pr_comment(cls: type[Self], repo: str, pull_request_number: int, comment_body: str) -> None:
-        github: GitHub = GitHub(os.environ["VORON_CI_GITHUB_TOKEN"])
+        github: GitHub = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
         response: Response = github.rest.issues.list_comments(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number)
 
         existing_comments: list[dict[str, str]] = response.json()

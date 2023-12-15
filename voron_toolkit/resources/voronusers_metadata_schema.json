@@ -1,0 +1,70 @@
+{
+    "type": "object",
+    "description": "\"Schema used for validation of .metadata.yml files in the VoronUsers repository\"",
+    "properties": {
+        "title": {
+            "type": "string",
+            "description": "Title of the mod"
+        },
+        "description": {
+            "type": "string",
+            "description": "Description of the mod"
+        },
+        "printer_compatibility": {
+            "type": "array",
+            "description": "Compatible printers of the mod",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "V0",
+                    "V0.1",
+                    "V0.2",
+                    "V0.2r1",
+                    "V1",
+                    "V1.6",
+                    "V1.8",
+                    "V1.8r1",
+                    "V2",
+                    "V2.1",
+                    "V2.2",
+                    "V2.4",
+                    "V2.4r1",
+                    "V2.4r2",
+                    "VSW",
+                    "VT",
+                    "VTr1",
+                    "VL"
+                ]
+            }
+        },
+        "images": {
+            "type": "array",
+            "description": "Images included with the mod, the first image will serve as card image on the mods site",
+            "items": {
+                "type": "string"
+            }
+        },
+        "cad": {
+            "type": "array",
+            "description": "CAD files included with the mod",
+            "items": {
+                "type": "string"
+            }
+        },
+        "discord_username": {
+            "description": "Discord username",
+            "type": "string"
+        },
+        "mod_version": {
+            "description": "Mod version",
+            "type": "integer"
+        }
+    },
+    "required": [
+        "title",
+        "description",
+        "printer_compatibility",
+        "mod_version",
+        "cad"
+    ]
+}

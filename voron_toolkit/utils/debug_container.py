@@ -2,7 +2,7 @@ import os
 
 from loguru import logger
 
-from voron_ci.utils.logging import init_logging
+from voron_toolkit.utils.logging import init_logging
 
 init_logging(verbose=True)
 

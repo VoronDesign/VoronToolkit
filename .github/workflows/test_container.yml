@@ -5,8 +5,10 @@ on:
 jobs:
     test_job:
       env:
-        VORON_CI_OUTPUT: workflow_output
-        VORON_CI_STEP_SUMMARY: true
+        VORON_TOOLKIT_OUTPUT_DIR: workflow_output
+        VORON_TOOLKIT_INPUT_DIR: tests/test_repository_root/printer_mods
+        VORON_TOOLKIT_VERBOSE: true
+        VORON_TOOLKIT_GH_STEP_SUMMARY: true
       runs-on: ubuntu-latest
       steps:
       # Checkout the entire repo
@@ -23,43 +25,35 @@ jobs:
       # Sanitize the file list
       - name: Sanitize file list
         id: sanitize_file_list
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
           FILE_LIST_SANITIZE_INPUT: ${{ steps.list_files.outputs.FILE_LIST }}
         with:
           args: sanitize-file-list
       # Run whitespace checks based on files in the test directory
-      - name: Whitespace Checker (input_dir)
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+      - name: Whitespace Checker
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          WHITESPACE_CHECKER_INPUT_DIR: tests/test_repository_root/printer_mods
-          WHITESPACE_CHECKER_VERBOSE: true
           WHITESPACE_CHECKER_IGNORE_WARNINGS: false
         with:
           args: check-whitespace
       - name: Mod Structure Checker
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          MOD_STRUCTURE_CHECKER_INPUT_DIR: tests/test_repository_root/printer_mods
-          MOD_STRUCTURE_CHECKER_VERBOSE: true
           MOD_STRUCTURE_CHECKER_IGNORE_WARNINGS: false
         with:
           args: check-mod-structure
       # Run the corruption checker
       - name: Corruption Checker
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          CORRUPTION_CHECKER_INPUT_DIR: tests/test_repository_root/printer_mods
-          CORRUPTION_CHECKER_VERBOSE: true
           CORRUPTION_CHECKER_IGNORE_WARNINGS: true
         with:
           args: check-stl-corruption
       # Run the rotation checker
       - name: Rotation Checker
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          ROTATION_CHECKER_INPUT_DIR: tests/test_repository_root/printer_mods
-          ROTATION_CHECKER_VERBOSE: true
           ROTATION_CHECKER_IGNORE_WARNINGS: true
           ROTATION_CHECKER_IMAGEKIT_ENDPOINT: ./img
           ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: test_run
@@ -67,11 +61,9 @@ jobs:
           args: check-stl-rotation
       # Generate a README
       - name: Generate README
-        uses: docker://ghcr.io/fheilmann/voron_ci_container:latest
+        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          README_GENERATOR_INPUT_DIR: tests/test_repository_root/printer_mods
-          README_GENERATOR_README: true
-          README_GENERATOR_VERBOSE: true
+          README_GENERATOR_MARKDOWN: true
           README_GENERATOR_JSON: true
         with:
           args: generate-readme
