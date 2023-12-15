@@ -7,9 +7,9 @@ from typing import Self
 import configargparse
 from loguru import logger
 
-from voron_ci.constants import SUCCESS_LABEL, VORONUSERS_PR_COMMENT_SECTIONS, StepResult
-from voron_ci.utils.github_action_helper import GithubActionHelper
-from voron_ci.utils.logging import init_logging
+from voron_toolkit.constants import CI_ERROR_LABEL, CI_FAILURE_LABEL, CI_PASSED_LABEL, VORONUSERS_PR_COMMENT_SECTIONS, StepIdentifier, StepResult
+from voron_toolkit.utils.github_action_helper import GithubActionHelper
+from voron_toolkit.utils.logging import init_logging
 
 ENV_VAR_PREFIX = "PR_HELPER"
 
@@ -35,7 +35,7 @@ class PrHelper:
         self.pr_number: int = -1
 
         self.comment_body: str = PREAMBLE
-        self.labels: list[str] = []
+        self.labels: set[str] = set()
 
         init_logging(verbose=args.verbose)
 
@@ -45,6 +45,22 @@ class PrHelper:
             logger.error("Artifact is missing pr_number.txt file!")
             sys.exit(255)
         self.pr_number = int(Path(self.tmp_path, "pr_number.txt").read_text())
+        # Parse generate-readme step if it was executed:
+        if not (
+            Path(self.tmp_path, StepIdentifier.README_GENERATOR.step_id, "summary.md").exists()
+            and Path(self.tmp_path, StepIdentifier.README_GENERATOR.step_id, "outcome.txt").exists()
+        ):
+            logger.info("No README_GENERATOR step found in artifact, skipping ...")
+        else:
+            outcome: StepResult = StepResult[Path(self.tmp_path, StepIdentifier.README_GENERATOR.step_id, "outcome.txt").read_text()]
+            self.comment_body += "I have found and attempted to parse the following mods in this PR:\n\n"
+            self.comment_body += Path(self.tmp_path, StepIdentifier.README_GENERATOR.step_id, "summary.md").read_text()
+            self.comment_body += "\n\n---\n\n"
+            if outcome > StepResult.SUCCESS:
+                self.labels.add(CI_ERROR_LABEL)
+
+        self.comment_body += "\nThese are the results of the individual CI checks:\n\n"
+
         for pr_step_identifier in VORONUSERS_PR_COMMENT_SECTIONS:
             if not (
                 Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").exists()
@@ -57,14 +73,19 @@ class PrHelper:
                     Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").exists(),
                     Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").exists(),
                 )
+                self.labels.add(CI_ERROR_LABEL)
                 continue
+            outcome = StepResult[Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").read_text()]
+            self.comment_body += f"#### {pr_step_identifier.step_name}: {outcome.result_icon}\n\n"
+            self.comment_body += f"<details{' open' if outcome != StepResult.SUCCESS else ''}>\n"
+            self.comment_body += "<summary>Details</summary>\n\n"
             self.comment_body += Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").read_text()
-            self.comment_body += "\n\n"
-            outcome: StepResult = StepResult[Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").read_text()]
+            self.comment_body += "</details>\n"
+            self.comment_body += "\n\n---\n\n"
             if outcome > StepResult.SUCCESS:
-                self.labels.append(pr_step_identifier.step_pr_label)
+                self.labels.add(CI_FAILURE_LABEL)
         if not self.labels:
-            self.labels.append(SUCCESS_LABEL)
+            self.labels.add(CI_PASSED_LABEL)
         self.comment_body += CLOSING_BOT_NOTICE
 
     def run(self: Self) -> None:
@@ -82,8 +103,16 @@ class PrHelper:
 
             self._parse_artifact()
             if self.pr_number > 0:
-                GithubActionHelper.set_labels_on_pull_request(repo=self.github_repository, pull_request_number=self.pr_number, labels=self.labels)
-                GithubActionHelper.update_or_create_pr_comment(repo=self.github_repository, pull_request_number=self.pr_number, comment_body=self.comment_body)
+                GithubActionHelper.set_labels_on_pull_request(
+                    repo=self.github_repository,
+                    pull_request_number=self.pr_number,
+                    labels=list(self.labels),
+                )
+                GithubActionHelper.update_or_create_pr_comment(
+                    repo=self.github_repository,
+                    pull_request_number=self.pr_number,
+                    comment_body=self.comment_body,
+                )
 
 
 def main() -> None:
@@ -124,7 +153,7 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
+        env_var="VORON_TOOLKIT_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )

@@ -10,9 +10,9 @@ from imagekitio import ImageKit
 from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions
 from loguru import logger
 
-from voron_ci.constants import StepIdentifier
-from voron_ci.utils.github_action_helper import GithubActionHelper
-from voron_ci.utils.logging import init_logging
+from voron_toolkit.constants import StepIdentifier
+from voron_toolkit.utils.github_action_helper import GithubActionHelper
+from voron_toolkit.utils.logging import init_logging
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -156,7 +156,7 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
+        env_var="VORON_TOOLKIT_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )

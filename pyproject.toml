@@ -1,29 +1,31 @@
 [tool.poetry]
-name = "voron_ci"
+name = "voron_toolkit"
 version = "0"
-description = "A repository & docker container containing all necessary tools to accomplish CI tasks"
+description = "A repository & docker container containing all necessary tools to accomplish CI tasks and provide useful CLI tools"
 authors = ["Florian Heilmann <Florian.Heilmann@gmx.net>"]
 license = "GPLv3"
 readme = "README.md"
+packages = [{include = "voron_toolkit"}]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
 admesh = "^0.98.9"
-imagekitio = "^3.2.0"
-tweaker3 = {git = "https://github.com/ChristophSchranz/Tweaker-3.git"}
-pyyaml = "^6.0.1"
-gitpython = "^3.1.40"
-requests = "^2.31.0"
 configargparse = "^1.7"
-loguru = "^0.7.2"
 githubkit = "^0.10.7"
+gitpython = "^3.1.40"
+imagekitio = "^3.2.0"
+jsonschema = "^4.20.0"
+loguru = "^0.7.2"
+pyyaml = "^6.0.1"
+requests = "^2.31.0"
+tweaker3 = {git = "https://github.com/ChristophSchranz/Tweaker-3.git"}
 
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.7.0"
 ruff = "^0.1.5"
-types-requests = "<2.31.0.7"
 types-pyyaml = "^6.0.12.12"
+types-requests = "<2.31.0.7"
 
 [build-system]
 requires = ["poetry-core"]
@@ -42,8 +44,8 @@ select = ["ALL" ]
 ignore = [
     "D", # no docs
     "ISC001", "COM812", # Might cause issues with formatter
-    "TRY300", # competes with RET505
     "PLE1205", # ruff gets confused about loguru
+    "TRY300", # competes with RET505
 ]
 fixable = ["ALL"]
 
@@ -56,19 +58,20 @@ line-ending = "lf"
 [[tool.mypy.overrides]]
 module = [
     "admesh.*",
-    "tweaker3.*",
-    "imagekitio.*",
     "configargparse.*",
+    "imagekitio.*",
+    "jsonschema.*",
+    "tweaker3.*",
 ]
 ignore_missing_imports = true
 
 [tool.poetry.scripts]
-check-stl-corruption = "voron_ci.tools.stl_corruption_checker:main"
-check-stl-rotation = "voron_ci.tools.stl_rotation_checker:main"
-check-mod-structure = "voron_ci.tools.mod_structure_checker:main"
-check-whitespace = "voron_ci.tools.whitespace_checker:main"
-generate-readme = "voron_ci.tools.readme_generator:main"
-upload-images = "voron_ci.utils.imagekit_uploader:main"
-debug-container = "voron_ci.utils.debug_container:print_container_info"
-sanitize-file-list = "voron_ci.utils.file_helper:sanitize_file_list"
-set-pr-comment-labels = "voron_ci.utils.pr_helper:main"
+check-mod-structure = "voron_toolkit.tools.mod_structure_checker:main"
+check-stl-corruption = "voron_toolkit.tools.stl_corruption_checker:main"
+check-stl-rotation = "voron_toolkit.tools.stl_rotation_checker:main"
+check-whitespace = "voron_toolkit.tools.whitespace_checker:main"
+debug-container = "voron_toolkit.utils.debug_container:print_container_info"
+generate-readme = "voron_toolkit.tools.readme_generator:main"
+sanitize-file-list = "voron_toolkit.utils.file_helper:sanitize_file_list"
+set-pr-comment-labels = "voron_toolkit.utils.pr_helper:main"
+upload-images = "voron_toolkit.utils.imagekit_uploader:main"
