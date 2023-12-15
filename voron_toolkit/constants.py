@@ -1,7 +1,9 @@
 from enum import Enum
 from typing import NamedTuple
 
-SUCCESS_LABEL: str = "PR: CI passed"
+CI_PASSED_LABEL: str = "CI: Passed"
+CI_FAILURE_LABEL: str = "CI: Issues identified"
+CI_ERROR_LABEL: str = "Warning: CI Error"
 PR_COMMENT_TAG: str = "<!-- voron_docker_toolkit -->"
 
 
@@ -13,7 +15,6 @@ class StepResultCodeStr(NamedTuple):
 class StepIdName(NamedTuple):
     step_id: str
     step_name: str
-    step_pr_label: str
 
 
 class StepResult(StepResultCodeStr, Enum):
@@ -24,11 +25,11 @@ class StepResult(StepResultCodeStr, Enum):
 
 
 class StepIdentifier(StepIdName, Enum):
-    CORRUPTION_CHECK = StepIdName(step_id="corruption_check", step_name="STL corruption checker", step_pr_label="Issue: STL Corruption")
-    MOD_STRUCTURE_CHECK = StepIdName(step_id="mod_structure_check", step_name="Mod structure checker", step_pr_label="Issue: Mod Structure")
-    README_GENERATOR = StepIdName(step_id="readme_generator", step_name="Readme generator", step_pr_label="Issue: Readme")
-    ROTATION_CHECK = StepIdName(step_id="rotation_check", step_name="STL rotation checker", step_pr_label="Info: Possible STL rotation issue")
-    WHITESPACE_CHECK = StepIdName(step_id="whitespace_check", step_name="Whitespace checker", step_pr_label="Issue: Whitespace")
+    CORRUPTION_CHECK = StepIdName(step_id="corruption_check", step_name="STL corruption checker")
+    MOD_STRUCTURE_CHECK = StepIdName(step_id="mod_structure_check", step_name="Mod structure checker")
+    README_GENERATOR = StepIdName(step_id="readme_generator", step_name="Readme generator")
+    ROTATION_CHECK = StepIdName(step_id="rotation_check", step_name="STL rotation checker")
+    WHITESPACE_CHECK = StepIdName(step_id="whitespace_check", step_name="Whitespace checker")
 
 
 VORONUSERS_PR_COMMENT_SECTIONS: list[StepIdentifier] = [

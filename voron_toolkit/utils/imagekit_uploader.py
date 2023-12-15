@@ -156,7 +156,7 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
+        env_var="VORON_TOOLKIT_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )

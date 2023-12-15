@@ -6,8 +6,10 @@ on:
 jobs:
     voron_ci:
       env:
-        VORON_CI_OUTPUT: ${{ github.workspace }}/workflow_output
-        VORON_CI_STEP_SUMMARY: true
+        VORON_TOOLKIT_OUTPUT_DIR: ${{ github.workspace }}/workflow_output
+        VORON_TOOLKIT_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
+        VORON_TOOLKIT_GH_STEP_SUMMARY: true
+        VORON_TOOLKIT_VERBOSE: true
       runs-on: ubuntu-latest
       steps:
       - id: changed-files
@@ -35,14 +37,12 @@ jobs:
       - name: Store PR number 🔢
         if: '!cancelled()'
         run: |
-          mkdir -p ${{ env.VORON_CI_OUTPUT }}
-          echo -n ${{ github.event.number }} > ${{ env.VORON_CI_OUTPUT }}/pr_number.txt
+          mkdir -p ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
+          echo -n ${{ github.event.number }} > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/pr_number.txt
       # Run whitespace checks based on files in the test directory
       - name: Check for whitespace in folders/filenames 🔍
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          WHITESPACE_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
-          WHITESPACE_CHECKER_VERBOSE: true
           WHITESPACE_CHECKER_IGNORE_WARNINGS: false
         with:
           args: check-whitespace
@@ -50,8 +50,6 @@ jobs:
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          MOD_STRUCTURE_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
-          MOD_STRUCTURE_CHECKER_VERBOSE: true
           MOD_STRUCTURE_CHECKER_IGNORE_WARNINGS: false
         with:
           args: check-mod-structure
@@ -60,9 +58,7 @@ jobs:
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          CORRUPTION_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
-          CORRUPTION_CHECKER_VERBOSE: true
-          CORRUPTION_CHECKER_IGNORE_WARNINGS: true
+          CORRUPTION_CHECKER_IGNORE_WARNINGS: false
         with:
           args: check-stl-corruption
       # Run the rotation checker
@@ -70,8 +66,6 @@ jobs:
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          ROTATION_CHECKER_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
-          ROTATION_CHECKER_VERBOSE: true
           ROTATION_CHECKER_IGNORE_WARNINGS: true
           ROTATION_CHECKER_IMAGEKIT_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
           ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: img
@@ -82,9 +76,7 @@ jobs:
         if: '!cancelled()'
         uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
         env:
-          README_GENERATOR_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
           README_GENERATOR_README: false
-          README_GENERATOR_VERBOSE: true
           README_GENERATOR_JSON: false
         with:
           args: generate-readme
@@ -94,4 +86,4 @@ jobs:
         if: '!cancelled()'
         with:
           name: ci_output
-          path: ${{ env.VORON_CI_OUTPUT }}
+          path: ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}

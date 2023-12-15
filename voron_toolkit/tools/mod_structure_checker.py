@@ -40,15 +40,16 @@ class ModStructureChecker:
         init_logging(verbose=args.verbose)
 
     def _check_mods(self: Self) -> None:
-        mod_folders = [folder for folder in self.input_dir.glob("*/*") if folder.is_dir() and folder.relative_to(self.input_dir).as_posix() not in IGNORE_FILES]
+        mod_folders = [folder for folder in self.input_dir.glob("*/*") if folder.is_dir()]
         logger.info("Performing mod structure and metadata check")
         result: StepResult = StepResult.SUCCESS
         schema = json.loads(files(resources).joinpath("voronusers_metadata_schema.json").read_text())
         for mod_folder in mod_folders:
+            mod_folder_relative: str = mod_folder.relative_to(self.input_dir).as_posix()
             if not Path(mod_folder, ".metadata.yml").exists():
-                logger.error("Mod '{}' is missing a metadata file!", mod_folder)
+                logger.error("Mod '{}' is missing a metadata file!", mod_folder_relative)
                 self.check_summary.append(
-                    [mod_folder.relative_to(self.input_dir).as_posix(), StepResult.FAILURE.result_str, FileErrors.mod_missing_metadata.value.format(mod_folder)]
+                    [mod_folder_relative, StepResult.FAILURE.result_str, FileErrors.mod_missing_metadata.value.format(mod_folder_relative)]
                 )
                 result = StepResult.FAILURE
                 continue
@@ -73,7 +74,7 @@ class ModStructureChecker:
                     [
                         Path(mod_folder, ".metadata.yml").relative_to(self.input_dir).as_posix(),
                         StepResult.FAILURE.result_str,
-                        FileErrors.mod_has_invalid_metadata_file.value.format(mod_folder),
+                        FileErrors.mod_has_invalid_metadata_file.value.format(mod_folder_relative),
                     ]
                 )
                 result = StepResult.FAILURE
@@ -82,7 +83,7 @@ class ModStructureChecker:
             if "cad" in metadata and not metadata["cad"]:
                 logger.warning("Mod '{}' has no CAD files!", mod_folder)
                 self.check_summary.append(
-                    [mod_folder.relative_to(self.input_dir).as_posix(), StepResult.FAILURE.result_str, FileErrors.mod_has_no_cad_files.value.format(mod_folder)]
+                    [mod_folder_relative, StepResult.FAILURE.result_str, FileErrors.mod_has_no_cad_files.value.format(mod_folder_relative)]
                 )
                 result = StepResult.FAILURE
 
@@ -90,19 +91,19 @@ class ModStructureChecker:
                 metadata_files = metadata[subelement]
                 if not (isinstance(metadata_files, list) and len(metadata_files) > 0):
                     continue
-                for file in metadata_files:
-                    if not Path(mod_folder, file).exists():
-                        logger.error("File '{}' is missing in mod folder '{}'!", file, mod_folder)
+                for metadata_file in metadata_files:
+                    if not Path(mod_folder, metadata_file).exists():
+                        logger.error("File '{}' is missing in mod folder '{}'!", metadata_file, mod_folder_relative)
                         self.check_summary.append(
                             [
-                                mod_folder.relative_to(self.input_dir).as_posix(),
+                                mod_folder_relative,
                                 StepResult.FAILURE.result_str,
-                                FileErrors.file_from_metadata_missing.value.format(file),
+                                FileErrors.file_from_metadata_missing.value.format(metadata_file),
                             ]
                         )
                         result = StepResult.FAILURE
-            self.check_summary.append([mod_folder.relative_to(self.input_dir).as_posix(), StepResult.SUCCESS.result_str, ""])
-            logger.success("Folder '{}' OK!", mod_folder.relative_to(self.input_dir).as_posix())
+            self.check_summary.append([mod_folder_relative, StepResult.SUCCESS.result_str, ""])
+            logger.success("Folder '{}' OK!", mod_folder_relative)
         self.return_status = result
 
     def _check_shallow_files(self: Self) -> None:
@@ -148,7 +149,7 @@ def main() -> None:
         required=True,
         action="store",
         type=str,
-        env_var=f"{ENV_VAR_PREFIX}_INPUT_DIR",
+        env_var="VORON_TOOLKIT_INPUT_DIR",
         help="Directory containing Mods to be checked",
     )
     parser.add_argument(
@@ -156,7 +157,7 @@ def main() -> None:
         "--verbose",
         required=False,
         action="store_true",
-        env_var=f"{ENV_VAR_PREFIX}_VERBOSE",
+        env_var="VORON_TOOLKIT_VERBOSE",
         help="Print debug output to stdout",
         default=False,
     )
