@@ -36,10 +36,10 @@ class WhitespaceChecker:
 
             if result_ok:
                 logger.success("File '{}' OK!", input_file)
-                self.check_summary.append([input_file, StepResult.SUCCESS.result_icon, ""])
+                self.check_summary.append([input_file, f"{StepResult.SUCCESS.result_icon} {StepResult.SUCCESS.name}", ""])
             else:
                 logger.error("File '{}' contains whitespace!", input_file)
-                self.check_summary.append([input_file, StepResult.FAILURE.result_icon, "This [path] contains whitespace!"])
+                self.check_summary.append([input_file, f"{StepResult.FAILURE.result_icon} {StepResult.FAILURE.name}", "This folder/file contains whitespace!"])
                 self.return_status = StepResult.FAILURE
 
     def run(self: Self) -> None:

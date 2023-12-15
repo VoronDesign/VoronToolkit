@@ -7,7 +7,7 @@ from typing import Self
 import configargparse
 from loguru import logger
 
-from voron_toolkit.constants import CI_ERROR_LABEL, CI_FAILURE_LABEL, CI_PASSED_LABEL, VORONUSERS_PR_COMMENT_SECTIONS, StepResult
+from voron_toolkit.constants import CI_ERROR_LABEL, CI_FAILURE_LABEL, CI_PASSED_LABEL, VORONUSERS_PR_COMMENT_SECTIONS, StepIdentifier, StepResult
 from voron_toolkit.utils.github_action_helper import GithubActionHelper
 from voron_toolkit.utils.logging import init_logging
 
@@ -45,6 +45,22 @@ class PrHelper:
             logger.error("Artifact is missing pr_number.txt file!")
             sys.exit(255)
         self.pr_number = int(Path(self.tmp_path, "pr_number.txt").read_text())
+        # Parse generate-readme step if it was executed:
+        if not (
+            Path(self.tmp_path, StepIdentifier.README_GENERATOR.step_id, "summary.md").exists()
+            and Path(self.tmp_path, StepIdentifier.README_GENERATOR.step_id, "outcome.txt").exists()
+        ):
+            logger.info("No README_GENERATOR step found in artifact, skipping ...")
+        else:
+            outcome: StepResult = StepResult[Path(self.tmp_path, StepIdentifier.README_GENERATOR.step_id, "outcome.txt").read_text()]
+            self.comment_body += "I have found and attempted to parse the following mods in this PR:\n\n"
+            self.comment_body += Path(self.tmp_path, StepIdentifier.README_GENERATOR.step_id, "summary.md").read_text()
+            self.comment_body += "\n\n---\n\n"
+            if outcome > StepResult.SUCCESS:
+                self.labels.add(CI_ERROR_LABEL)
+
+        self.comment_body += "\nThese are the results of the individual CI checks:\n\n"
+
         for pr_step_identifier in VORONUSERS_PR_COMMENT_SECTIONS:
             if not (
                 Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").exists()
@@ -59,7 +75,7 @@ class PrHelper:
                 )
                 self.labels.add(CI_ERROR_LABEL)
                 continue
-            outcome: StepResult = StepResult[Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").read_text()]
+            outcome = StepResult[Path(self.tmp_path, pr_step_identifier.step_id, "outcome.txt").read_text()]
             self.comment_body += f"#### {pr_step_identifier.step_name}: {outcome.result_icon}\n\n"
             self.comment_body += Path(self.tmp_path, pr_step_identifier.step_id, "summary.md").read_text()
             self.comment_body += "\n\n---\n\n"

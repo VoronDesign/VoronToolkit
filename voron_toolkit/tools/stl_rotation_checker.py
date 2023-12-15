@@ -134,13 +134,14 @@ class STLRotationChecker:
     def _check_stl(self: Self, stl_file_path: Path) -> StepResult:
         try:
             mesh_objects: dict[int, Any] = FileHandler().load_mesh(inputfile=stl_file_path.as_posix())
+            original_image_url: str = self._make_markdown_image(stl_file_path=stl_file_path.relative_to(self.input_dir))
+
             if len(mesh_objects.items()) > 1:
                 logger.warning("File '{}' contains multiple objects and is therefore skipped!", stl_file_path.relative_to(self.input_dir).as_posix())
-                self.check_summary.append([stl_file_path.name, StepResult.WARNING.result_icon, "", ""])
+                self.check_summary.append([stl_file_path.name, f"{StepResult.WARNING.result_icon} MULTI-PART", original_image_url, ""])
                 return StepResult.WARNING
             rotated_mesh: Tweak = Tweak(mesh_objects[0]["mesh"], extended_mode=True, verbose=False, min_volume=True)
 
-            original_image_url: str = self._make_markdown_image(stl_file_path=stl_file_path.relative_to(self.input_dir))
             if rotated_mesh.rotation_angle >= TWEAK_THRESHOLD:
                 logger.warning("Found rotation suggestion for STL '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
                 output_stl_path: Path = Path(
@@ -157,7 +158,7 @@ class STLRotationChecker:
                 self.check_summary.append(
                     [
                         stl_file_path.name,
-                        StepResult.WARNING.result_icon,
+                        f"{StepResult.WARNING.result_icon} {StepResult.WARNING.name}",
                         original_image_url,
                         rotated_image_url,
                     ],
@@ -165,12 +166,12 @@ class STLRotationChecker:
                 return StepResult.WARNING
             logger.success("File '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
-                [stl_file_path.name, StepResult.SUCCESS.result_icon, original_image_url, ""],
+                [stl_file_path.name, f"{StepResult.SUCCESS.result_icon} {StepResult.SUCCESS.name}", original_image_url, ""],
             )
             return StepResult.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking {}", stl_file_path.relative_to(self.input_dir).as_posix())
-            self.check_summary.append([stl_file_path.name, StepResult.EXCEPTION.result_icon, "", ""])
+            self.check_summary.append([stl_file_path.name, f"{StepResult.EXCEPTION.result_icon} {StepResult.EXCEPTION.name}", "", ""])
             return StepResult.EXCEPTION
 
 

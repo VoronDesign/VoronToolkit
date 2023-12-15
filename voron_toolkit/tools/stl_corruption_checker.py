@@ -79,13 +79,13 @@ class STLCorruptionChecker:
                 return StepResult.FAILURE
             logger.success("STL '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
-                [stl_file_path.name, StepResult.SUCCESS.result_icon, "0"],
+                [stl_file_path.name, f"{StepResult.SUCCESS.result_icon} {StepResult.SUCCESS.name}", "0"],
             )
             return StepResult.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
             self.check_summary.append(
-                [stl_file_path.name, StepResult.EXCEPTION.result_icon, "0"],
+                [stl_file_path.name, f"{StepResult.EXCEPTION.result_icon} {StepResult.EXCEPTION.name}", "0"],
             )
             return StepResult.EXCEPTION
 
