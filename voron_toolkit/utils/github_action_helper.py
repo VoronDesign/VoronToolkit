@@ -65,7 +65,7 @@ class GithubActionHelper:
         if self.do_gh_step_summary:
             with Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).open("a") as gh_step_summary:
                 gh_step_summary.write(f"### {action_result.action_name}\n\n")
-                gh_step_summary.write(action_result.summary.to_markdown(result_ok=False))
+                gh_step_summary.write(action_result.summary.to_markdown())
 
     def _write_artifacts(self: Self, action_result: ActionResult) -> None:
         if self.output_path:
@@ -75,7 +75,7 @@ class GithubActionHelper:
                 with Path(self.output_path, action_result.action_id, artifact_path).open(mode="wb" if isinstance(artifact_contents, bytes) else "w") as f:
                     f.write(artifact_contents)
             with Path(self.output_path, action_result.action_id, "summary.md").open("w") as f:
-                f.write(action_result.summary.to_markdown(result_ok=action_result.outcome == StepResult.SUCCESS))
+                f.write(action_result.summary.to_markdown())
             with Path(self.output_path, action_result.action_id, "outcome.txt").open("w") as f:
                 if action_result.outcome == StepResult.SUCCESS or (action_result.outcome == StepResult.WARNING and self.ignore_warnings):
                     f.write(StepResult.SUCCESS.name)

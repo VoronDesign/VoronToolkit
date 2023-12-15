@@ -5,7 +5,7 @@ from typing import Self
 
 class ActionSummary(ABC):
     @abstractmethod
-    def to_markdown(self: Self, *, result_ok: bool = True) -> str:
+    def to_markdown(self: Self) -> str:
         pass
 
 
@@ -14,13 +14,8 @@ class ActionSummaryTable(ActionSummary):
     columns: list[str]
     rows: list[list[str]]
 
-    def to_markdown(self: Self, *, result_ok: bool = True) -> str:
-        return (
-            f"<details{' open' if not result_ok else ''}>\n"
-            f"<summary>Result (items: {len(self.rows)})</summary>\n\n"
-            f"{self.create_markdown_table(self.columns, self.rows)}\n"
-            f"</details>\n"
-        )
+    def to_markdown(self: Self) -> str:
+        return f"{self.create_markdown_table(self.columns, self.rows)}\n"
 
     @classmethod
     def _create_table_header(cls: type[Self], columns: list[str]) -> str:
