@@ -1,5 +1,6 @@
 import json
 import textwrap
+from collections import defaultdict
 from importlib.resources import files
 from pathlib import Path
 from typing import Any, Self
@@ -10,22 +11,14 @@ import yaml
 from loguru import logger
 
 from voron_toolkit import resources
-from voron_toolkit.constants import StepIdentifier, StepResult
-from voron_toolkit.utils.action_summary import ActionSummaryTable
+from voron_toolkit.constants import ExtendedResultEnum, ItemResult, ToolIdentifierEnum, ToolResult, ToolSummaryTable
 from voron_toolkit.utils.file_helper import FileHelper
-from voron_toolkit.utils.github_action_helper import ActionResult, GithubActionHelper
+from voron_toolkit.utils.github_action_helper import GithubActionHelper
 from voron_toolkit.utils.logging import init_logging
 
 PREAMBLE = """# Mods
 
 Printer mods for Voron 3D printers
-
-## Legacy printers
-
-Mods for legacy printers can be found [here](../legacy_printers/printer_mods).
-If one of your legacy mods applies to a current Voron 3D printer and therefore should be included in this list,
-contact the admins on Discord to have your mod moved to this folder.
-
 ---
 
 """
@@ -38,7 +31,8 @@ class ReadmeGenerator:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.json: bool = args.json
         self.markdown: bool = args.markdown
-        self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=False)
+        self.gh_helper: GithubActionHelper = GithubActionHelper()
+        self.result_items: defaultdict[ExtendedResultEnum, list[ItemResult]] = defaultdict(list)
 
         init_logging(verbose=args.verbose)
 
@@ -47,7 +41,7 @@ class ReadmeGenerator:
         logger.info("ReadmeGenerator starting up (markdown: '{}', json: '{}', input_dir: '{}')", self.markdown, self.json, self.input_dir.as_posix())
         yaml_list: list[Path] = FileHelper.find_files_by_name(self.input_dir, ".metadata.yml")
         schema: dict[str, Any] = json.loads(files(resources).joinpath("voronusers_metadata_schema.json").read_text())
-        result: StepResult = StepResult.SUCCESS
+        result: ExtendedResultEnum = ExtendedResultEnum.SUCCESS
         mods: list[dict[str, Any]] = []
         for yml_file in sorted(yaml_list):
             mod_path: str = yml_file.relative_to(self.input_dir).parent.as_posix()
@@ -56,11 +50,17 @@ class ReadmeGenerator:
                 jsonschema.validate(instance=metadata, schema=schema)
             except (yaml.YAMLError, yaml.scanner.ScannerError) as e:
                 logger.error("YAML error in metadata file of mod '{}': {}", mod_path, e)
-                result = StepResult.FAILURE
+                result = ExtendedResultEnum.FAILURE
+                self.result_items[ExtendedResultEnum.FAILURE].append(
+                    ItemResult(
+                        item=mod_path,
+                        extra_info=["Error loading yaml file", yml_file.relative_to(self.input_dir).parts[0], "", "", ""],
+                    )
+                )
                 mods.append(
                     {
                         "path": mod_path,
-                        "title": f"{StepResult.FAILURE.result_icon} Error loading yaml file",
+                        "title": f"{ExtendedResultEnum.FAILURE.icon} Error loading yaml file",
                         "creator": yml_file.relative_to(self.input_dir).parts[0],
                         "description": "",
                         "printer_compatibility": "",
@@ -70,19 +70,37 @@ class ReadmeGenerator:
                 continue
             except jsonschema.ValidationError as e:
                 logger.error("Validation error in metadata file of mod '{}': {}", mod_path, e.message)
+                self.result_items[ExtendedResultEnum.FAILURE].append(
+                    ItemResult(
+                        item=mod_path,
+                        extra_info=["Error validating yaml file", yml_file.relative_to(self.input_dir).parts[0], "", "", ""],
+                    )
+                )
                 mods.append(
                     {
                         "path": mod_path,
-                        "title": f"{StepResult.FAILURE.result_icon} Error validating yaml file",
+                        "title": f"{ExtendedResultEnum.FAILURE.icon} Error validating yaml file",
                         "creator": yml_file.relative_to(self.input_dir).parts[0],
                         "description": "",
                         "printer_compatibility": "",
                         "last_changed": "",
                     }
                 )
-                result = StepResult.FAILURE
+                result = ExtendedResultEnum.FAILURE
                 continue
             logger.success("Mod '{}' OK!", mod_path)
+            self.result_items[ExtendedResultEnum.SUCCESS].append(
+                ItemResult(
+                    item=mod_path,
+                    extra_info=[
+                        metadata["title"],
+                        yml_file.relative_to(self.input_dir).parts[0],
+                        metadata["description"],
+                        f'{", ".join(sorted(metadata["printer_compatibility"]))}',
+                        GithubActionHelper.last_commit_timestamp(file_or_directory=yml_file.parent),
+                    ],
+                )
+            )
             mods.append(
                 {
                     "path": mod_path,
@@ -109,28 +127,29 @@ class ReadmeGenerator:
             )
             prev_username = mod["creator"]
 
-        if self.json and (result == StepResult.SUCCESS):
+        if self.json and (result == ExtendedResultEnum.SUCCESS):
             logger.info("Writing json file!")
             self.gh_helper.set_artifact(file_name="mods.json", file_contents=json.dumps(mods, indent=4))
 
-        if self.markdown and (result == StepResult.SUCCESS):
+        if self.markdown and (result == ExtendedResultEnum.SUCCESS):
             logger.info("Writing README file!")
             self.gh_helper.set_artifact(
                 file_name="README.md",
                 file_contents=f"{PREAMBLE}\n\n"
-                + ActionSummaryTable.create_markdown_table(
+                + ToolSummaryTable.create_markdown_table(
                     columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"], rows=readme_rows
                 ),
             )
 
         self.gh_helper.finalize_action(
-            action_result=ActionResult(
-                action_id=StepIdentifier.README_GENERATOR.step_id,
-                action_name=StepIdentifier.README_GENERATOR.step_name,
-                outcome=result,
-                summary=ActionSummaryTable(
-                    columns=["Creator", "Mod title", "Description", "Printer compatibility", "Last Changed"],
-                    rows=readme_rows,
+            action_result=ToolResult(
+                tool_id=ToolIdentifierEnum.README_GENERATOR.tool_id,
+                tool_name=ToolIdentifierEnum.README_GENERATOR.tool_name,
+                extended_result=result,
+                tool_ignore_warnings=False,
+                tool_result_items=ToolSummaryTable(
+                    extra_columns=["Title", "Creator", "Description", "Printer compatibility", "Last Changed"],
+                    items=self.result_items,
                 ),
             )
         )
