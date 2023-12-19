@@ -68,7 +68,7 @@ jobs:
         env:
           ROTATION_CHECKER_IGNORE_WARNINGS: true
           ROTATION_CHECKER_IMAGEKIT_ENDPOINT: https://ik.imagekit.io/vorondesign
-          ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: img
+          ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: ci_${{github.event.number}}
         with:
           args: check-stl-rotation
       # Generate a README

@@ -60,7 +60,7 @@ class PrHelper:
         comment_body += self._tool_overview()
         comment_body += "\n---\n\n"
 
-        comment_body += "## Tool check results details:\n\n"
+        comment_body += "### Tool check results details:\n\n"
         for extended_result in ExtendedResultEnum:
             comment_body += self._result_details_for_extended_result(extended_result=extended_result)
 
