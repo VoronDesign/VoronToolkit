@@ -165,7 +165,7 @@ class PrHelper:
                 GithubActionHelper.set_labels_on_pull_request(
                     repo=self.github_repository,
                     pull_request_number=pr_number,
-                    labels=list(*labels_to_set, *labels_to_preserve),
+                    labels=[*labels_to_set, *labels_to_preserve],
                 )
                 pr_comment: str = self._generate_pr_comment()
                 GithubActionHelper.update_or_create_pr_comment(
