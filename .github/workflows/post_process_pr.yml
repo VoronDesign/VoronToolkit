@@ -14,7 +14,7 @@ jobs:
     steps:
     - name: Create PR comment 💬
       id: create_pr_comment
-      uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
+      uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
       env:
         PR_HELPER_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
         PR_HELPER_ARTIFACT_NAME: ci_output
@@ -30,14 +30,14 @@ jobs:
     steps:
     - name: Upload images to imagekit 📸
       id: imagekit-upload
-      uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
+      uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
       env:
         IMAGEKIT_UPLOADER_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
         IMAGEKIT_UPLOADER_ARTIFACT_NAME: ci_output
         IMAGEKIT_UPLOADER_GITHUB_REPOSITORY: ${{ github.repository }}
         IMAGEKIT_UPLOADER_PUBLIC_KEY: ${{ secrets.IMAGEKIT_PUBLIC_KEY }}
         IMAGEKIT_UPLOADER_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
-        IMAGEKIT_UPLOADER_IMAGEKIT_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
+        IMAGEKIT_UPLOADER_IMAGEKIT_ENDPOINT: https://ik.imagekit.io/vorondesign
         IMAGEKIT_UPLOADER_VERBOSE: true
         VORON_CI_GITHUB_TOKEN: ${{ github.token }}
       with:

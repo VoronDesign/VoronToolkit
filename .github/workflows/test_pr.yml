@@ -21,7 +21,7 @@ jobs:
       # Sanitize the file list
       - name: Sanitize file list 🧹
         id: sanitize_file_list
-        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
+        uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           FILE_LIST_SANITIZE_INPUT: ${{ steps.changed-files.outputs.all_changed_files }}
         with:
@@ -41,14 +41,14 @@ jobs:
           echo -n ${{ github.event.number }} > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/pr_number.txt
       # Run whitespace checks based on files in the test directory
       - name: Check for whitespace in folders/filenames 🔍
-        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
+        uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           WHITESPACE_CHECKER_IGNORE_WARNINGS: false
         with:
           args: check-whitespace
       - name: Check correct mod/file structure 🔍
         if: '!cancelled()'
-        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
+        uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           MOD_STRUCTURE_CHECKER_IGNORE_WARNINGS: false
         with:
@@ -56,7 +56,7 @@ jobs:
       # Run the corruption checker
       - name: Check for STL corruption 🔍
         if: '!cancelled()'
-        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
+        uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           CORRUPTION_CHECKER_IGNORE_WARNINGS: false
         with:
@@ -64,17 +64,17 @@ jobs:
       # Run the rotation checker
       - name: Check for incorrect STL rotation 🔍
         if: '!cancelled()'
-        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
+        uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           ROTATION_CHECKER_IGNORE_WARNINGS: true
-          ROTATION_CHECKER_IMAGEKIT_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
-          ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: img
+          ROTATION_CHECKER_IMAGEKIT_ENDPOINT: https://ik.imagekit.io/vorondesign
+          ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: ci_${{github.event.number}}
         with:
           args: check-stl-rotation
       # Generate a README
       - name: Generate README 📒
         if: '!cancelled()'
-        uses: docker://ghcr.io/fheilmann/voron_toolkit_docker:latest
+        uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           README_GENERATOR_MARKDOWN: false
           README_GENERATOR_JSON: false

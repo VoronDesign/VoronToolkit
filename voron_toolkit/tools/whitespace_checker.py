@@ -1,14 +1,14 @@
 import os
 import string
+from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
 import configargparse
 from loguru import logger
 
-from voron_toolkit.constants import StepIdentifier, StepResult
-from voron_toolkit.utils.action_summary import ActionSummaryTable
-from voron_toolkit.utils.github_action_helper import ActionResult, GithubActionHelper
+from voron_toolkit.constants import ExtendedResultEnum, ItemResult, ToolIdentifierEnum, ToolResult, ToolSummaryTable
+from voron_toolkit.utils.github_action_helper import GithubActionHelper
 from voron_toolkit.utils.logging import init_logging
 
 if TYPE_CHECKING:
@@ -19,12 +19,15 @@ ENV_VAR_PREFIX = "WHITESPACE_CHECKER"
 
 class WhitespaceChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
-        self.return_status: StepResult = StepResult.SUCCESS
         self.input_dir = args.input_dir
         self.input_env_var = args.input_env_var
+
+        self.return_status: ExtendedResultEnum = ExtendedResultEnum.SUCCESS
         self.input_file_list: list[str] = []
-        self.check_summary: list[list[str]] = []
-        self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
+        self.result_items: defaultdict[ExtendedResultEnum, list[ItemResult]] = defaultdict(list)
+
+        self.gh_helper: GithubActionHelper = GithubActionHelper()
+        self.ignore_warnings = args.ignore_warnings
 
         init_logging(verbose=args.verbose)
 
@@ -36,11 +39,11 @@ class WhitespaceChecker:
 
             if result_ok:
                 logger.success("File '{}' OK!", input_file)
-                self.check_summary.append([input_file, f"{StepResult.SUCCESS.result_icon} {StepResult.SUCCESS.name}", ""])
+                self.result_items[ExtendedResultEnum.SUCCESS].append(ItemResult(item=input_file, extra_info=[""]))
             else:
                 logger.error("File '{}' contains whitespace!", input_file)
-                self.check_summary.append([input_file, f"{StepResult.FAILURE.result_icon} {StepResult.FAILURE.name}", "This folder/file contains whitespace!"])
-                self.return_status = StepResult.FAILURE
+                self.result_items[ExtendedResultEnum.FAILURE].append(ItemResult(item=input_file, extra_info=["This folder/file contains whitespace!"]))
+                self.return_status = ExtendedResultEnum.FAILURE
 
     def run(self: Self) -> None:
         logger.info("============ Whitespace Checker ============")
@@ -57,13 +60,14 @@ class WhitespaceChecker:
         self._check_for_whitespace()
 
         self.gh_helper.finalize_action(
-            action_result=ActionResult(
-                action_id=StepIdentifier.WHITESPACE_CHECK.step_id,
-                action_name=StepIdentifier.WHITESPACE_CHECK.step_name,
-                outcome=self.return_status,
-                summary=ActionSummaryTable(
-                    columns=["File/Folder", "Result", "Reason"],
-                    rows=self.check_summary,
+            action_result=ToolResult(
+                tool_id=ToolIdentifierEnum.WHITESPACE_CHECK.tool_id,
+                tool_name=ToolIdentifierEnum.WHITESPACE_CHECK.tool_name,
+                extended_result=self.return_status,
+                tool_ignore_warnings=self.ignore_warnings,
+                tool_result_items=ToolSummaryTable(
+                    extra_columns=["Reason"],
+                    items=self.result_items,
                 ),
             )
         )
