@@ -172,7 +172,9 @@ class STLRotationChecker:
             return ExtendedResultEnum.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking {}", stl_file_path.relative_to(self.input_dir).as_posix())
-            self.result_items[ExtendedResultEnum.EXCEPTION].append(ItemResult(item=stl_file_path.name, extra_info=["", ""]))
+            self.result_items[ExtendedResultEnum.EXCEPTION].append(
+                ItemResult(item=stl_file_path.name, extra_info=["Exception occurred while STL parsing!", ""])
+            )
             return ExtendedResultEnum.EXCEPTION
 
 

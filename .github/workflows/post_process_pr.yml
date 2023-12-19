@@ -37,7 +37,7 @@ jobs:
         IMAGEKIT_UPLOADER_GITHUB_REPOSITORY: ${{ github.repository }}
         IMAGEKIT_UPLOADER_PUBLIC_KEY: ${{ secrets.IMAGEKIT_PUBLIC_KEY }}
         IMAGEKIT_UPLOADER_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
-        IMAGEKIT_UPLOADER_IMAGEKIT_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
+        IMAGEKIT_UPLOADER_IMAGEKIT_ENDPOINT: https://ik.imagekit.io/vorondesign
         IMAGEKIT_UPLOADER_VERBOSE: true
         VORON_CI_GITHUB_TOKEN: ${{ github.token }}
       with:

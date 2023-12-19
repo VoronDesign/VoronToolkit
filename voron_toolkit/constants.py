@@ -34,11 +34,10 @@ class ToolSummaryTable:
 
     def to_markdown(self: Self, filter_result: ExtendedResultEnum | None = None) -> str:
         if filter_result:
-            rows = [[row.item, *row.extra_info] for row in self.items[filter_result]]
-            markdown: str = self.create_markdown_table(columns=["Item", *self.extra_columns], rows=rows) if rows else ""
+            rows = [[row.item, f"{filter_result.icon} {filter_result.name}", *row.extra_info] for row in self.items[filter_result]]
         else:
             rows = [[row.item, f"{result.icon} {result.name}", *row.extra_info] for result in self.items for row in self.items[result]]
-            markdown = self.create_markdown_table(columns=["Item", "Result", *self.extra_columns], rows=rows) if rows else ""
+        markdown: str = self.create_markdown_table(columns=["Item", "Result", *self.extra_columns], rows=rows) if rows else ""
         return f"{markdown}"
 
     @classmethod
