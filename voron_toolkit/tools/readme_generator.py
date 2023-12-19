@@ -54,7 +54,7 @@ class ReadmeGenerator:
                 self.result_items[ExtendedResultEnum.FAILURE].append(
                     ItemResult(
                         item=mod_path,
-                        extra_info=["Error loading yaml file", yml_file.relative_to(self.input_dir).parts[0], "", "", ""],
+                        extra_info=["Error loading yaml file", ""],
                     )
                 )
                 mods.append(
@@ -73,7 +73,7 @@ class ReadmeGenerator:
                 self.result_items[ExtendedResultEnum.FAILURE].append(
                     ItemResult(
                         item=mod_path,
-                        extra_info=["Error validating yaml file", yml_file.relative_to(self.input_dir).parts[0], "", "", ""],
+                        extra_info=["Error validating yaml file", ""],
                     )
                 )
                 mods.append(
@@ -93,11 +93,8 @@ class ReadmeGenerator:
                 ItemResult(
                     item=mod_path,
                     extra_info=[
-                        metadata["title"],
-                        yml_file.relative_to(self.input_dir).parts[0],
-                        metadata["description"],
+                        textwrap.shorten(metadata["description"], width=70, placeholder="..."),
                         f'{", ".join(sorted(metadata["printer_compatibility"]))}',
-                        GithubActionHelper.last_commit_timestamp(file_or_directory=yml_file.parent),
                     ],
                 )
             )
@@ -148,7 +145,7 @@ class ReadmeGenerator:
                 extended_result=result,
                 tool_ignore_warnings=False,
                 tool_result_items=ToolSummaryTable(
-                    extra_columns=["Title", "Creator", "Description", "Printer compatibility", "Last Changed"],
+                    extra_columns=["Description/Error", "Printer compatibility"],
                     items=self.result_items,
                 ),
             )

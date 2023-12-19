@@ -52,7 +52,7 @@ class PrHelper:
         comment_body = PREAMBLE
 
         if ToolIdentifierEnum.README_GENERATOR in self.tool_results:
-            comment_body += "### Mods detected in this PR:\n\n"
+            comment_body += "### Added/Changed mods detected in this PR:\n\n"
             comment_body += self.tool_results[ToolIdentifierEnum.README_GENERATOR].tool_result_items.to_markdown()
             comment_body += "\n---\n\n"
 

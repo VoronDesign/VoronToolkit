@@ -67,7 +67,7 @@ jobs:
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           ROTATION_CHECKER_IGNORE_WARNINGS: true
-          ROTATION_CHECKER_IMAGEKIT_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
+          ROTATION_CHECKER_IMAGEKIT_ENDPOINT: https://ik.imagekit.io/vorondesign
           ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: img
         with:
           args: check-stl-rotation
