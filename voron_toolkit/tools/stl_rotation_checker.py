@@ -5,6 +5,7 @@ import struct
 import subprocess
 import tempfile
 import time
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Self
@@ -14,10 +15,9 @@ from loguru import logger
 from tweaker3.FileHandler import FileHandler
 from tweaker3.MeshTweaker import Tweak
 
-from voron_toolkit.constants import StepIdentifier, StepResult
-from voron_toolkit.utils.action_summary import ActionSummaryTable
+from voron_toolkit.constants import ExtendedResultEnum, ItemResult, ToolIdentifierEnum, ToolResult, ToolSummaryTable
 from voron_toolkit.utils.file_helper import FileHelper
-from voron_toolkit.utils.github_action_helper import ActionResult, GithubActionHelper
+from voron_toolkit.utils.github_action_helper import GithubActionHelper
 from voron_toolkit.utils.logging import init_logging
 
 TWEAK_THRESHOLD = 0.1
@@ -31,9 +31,10 @@ class STLRotationChecker:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
         self.imagekit_endpoint: str | None = args.imagekit_endpoint if args.imagekit_endpoint else None
         self.imagekit_subfolder: str = args.imagekit_subfolder
-        self.return_status: StepResult = StepResult.SUCCESS
-        self.check_summary: list[list[str]] = []
-        self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
+        self.return_status: ExtendedResultEnum = ExtendedResultEnum.SUCCESS
+        self.result_items: defaultdict[ExtendedResultEnum, list[ItemResult]] = defaultdict(list)
+        self.gh_helper: GithubActionHelper = GithubActionHelper()
+        self.ignore_warnings = args.ignore_warnings
 
         init_logging(verbose=args.verbose)
 
@@ -107,21 +108,22 @@ class STLRotationChecker:
         stl_paths: list[Path] = FileHelper.find_files_by_extension(directory=self.input_dir, extension="stl", max_files=40)
 
         with ThreadPoolExecutor() as pool:
-            return_statuses: list[StepResult] = list(pool.map(self._check_stl, stl_paths))
+            return_statuses: list[ExtendedResultEnum] = list(pool.map(self._check_stl, stl_paths))
 
         if return_statuses:
             self.return_status = max(*return_statuses, self.return_status)
         else:
-            self.return_status = StepResult.SUCCESS
+            self.return_status = ExtendedResultEnum.SUCCESS
 
         self.gh_helper.finalize_action(
-            action_result=ActionResult(
-                action_id=StepIdentifier.ROTATION_CHECK.step_id,
-                action_name=StepIdentifier.ROTATION_CHECK.step_name,
-                outcome=self.return_status,
-                summary=ActionSummaryTable(
-                    columns=["Filename", "Result", "Original orientation", "Suggested orientation"],
-                    rows=self.check_summary,
+            action_result=ToolResult(
+                tool_id=ToolIdentifierEnum.ROTATION_CHECK.tool_id,
+                tool_name=ToolIdentifierEnum.ROTATION_CHECK.tool_name,
+                extended_result=self.return_status,
+                tool_ignore_warnings=self.ignore_warnings,
+                tool_result_items=ToolSummaryTable(
+                    extra_columns=["Original orientation", "Suggested orientation"],
+                    items=self.result_items,
                 ),
             )
         )
@@ -131,16 +133,17 @@ class STLRotationChecker:
             file_name=stl_file_path.as_posix(), file_contents=self._get_rotated_stl_bytes(objects=stl, info={0: {"matrix": opts.matrix, "tweaker_stats": opts}})
         )
 
-    def _check_stl(self: Self, stl_file_path: Path) -> StepResult:
+    def _check_stl(self: Self, stl_file_path: Path) -> ExtendedResultEnum:
         try:
             mesh_objects: dict[int, Any] = FileHandler().load_mesh(inputfile=stl_file_path.as_posix())
+            original_image_url: str = self._make_markdown_image(stl_file_path=stl_file_path.relative_to(self.input_dir))
+
             if len(mesh_objects.items()) > 1:
                 logger.warning("File '{}' contains multiple objects and is therefore skipped!", stl_file_path.relative_to(self.input_dir).as_posix())
-                self.check_summary.append([stl_file_path.name, StepResult.WARNING.result_icon, "", ""])
-                return StepResult.WARNING
+                self.result_items[ExtendedResultEnum.WARNING].append(ItemResult(item=stl_file_path.name, extra_info=[original_image_url, ""]))
+                return ExtendedResultEnum.WARNING
             rotated_mesh: Tweak = Tweak(mesh_objects[0]["mesh"], extended_mode=True, verbose=False, min_volume=True)
 
-            original_image_url: str = self._make_markdown_image(stl_file_path=stl_file_path.relative_to(self.input_dir))
             if rotated_mesh.rotation_angle >= TWEAK_THRESHOLD:
                 logger.warning("Found rotation suggestion for STL '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
                 output_stl_path: Path = Path(
@@ -154,24 +157,25 @@ class STLRotationChecker:
 
                 rotated_image_url: str = self._make_markdown_image(stl_file_path=output_stl_path, stl_file_contents=rotated_stl_bytes)
 
-                self.check_summary.append(
-                    [
-                        stl_file_path.name,
-                        StepResult.WARNING.result_icon,
-                        original_image_url,
-                        rotated_image_url,
-                    ],
+                self.result_items[ExtendedResultEnum.WARNING].append(
+                    ItemResult(
+                        item=stl_file_path.name,
+                        extra_info=[
+                            original_image_url,
+                            rotated_image_url,
+                        ],
+                    )
                 )
-                return StepResult.WARNING
+                return ExtendedResultEnum.WARNING
             logger.success("File '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
-            self.check_summary.append(
-                [stl_file_path.name, StepResult.SUCCESS.result_icon, original_image_url, ""],
-            )
-            return StepResult.SUCCESS
+            self.result_items[ExtendedResultEnum.SUCCESS].append(ItemResult(item=stl_file_path.name, extra_info=[original_image_url, ""]))
+            return ExtendedResultEnum.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking {}", stl_file_path.relative_to(self.input_dir).as_posix())
-            self.check_summary.append([stl_file_path.name, StepResult.EXCEPTION.result_icon, "", ""])
-            return StepResult.EXCEPTION
+            self.result_items[ExtendedResultEnum.EXCEPTION].append(
+                ItemResult(item=stl_file_path.name, extra_info=["Exception occurred while STL parsing!", ""])
+            )
+            return ExtendedResultEnum.EXCEPTION
 
 
 def main() -> None:

@@ -10,7 +10,7 @@ from imagekitio import ImageKit
 from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions
 from loguru import logger
 
-from voron_toolkit.constants import StepIdentifier
+from voron_toolkit.constants import ToolIdentifierEnum
 from voron_toolkit.utils.github_action_helper import GithubActionHelper
 from voron_toolkit.utils.logging import init_logging
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from imagekitio.models.results import UploadFileResult
 
 ENV_VAR_PREFIX = "IMAGEKIT_UPLOADER"
-IMAGE_SUBDIRECTORY = f"{StepIdentifier.ROTATION_CHECK.step_id}/img"
+IMAGE_SUBDIRECTORY = f"{ToolIdentifierEnum.ROTATION_CHECK.tool_id}/img"
 
 
 class ImageKitUploader:

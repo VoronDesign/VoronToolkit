@@ -2,7 +2,6 @@ import datetime
 import os
 import sys
 import zipfile
-from dataclasses import dataclass
 from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Self
@@ -12,8 +11,7 @@ from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from githubkit import GitHub, Response
 from loguru import logger
 
-from voron_toolkit.constants import PR_COMMENT_TAG, StepResult
-from voron_toolkit.utils.action_summary import ActionSummary
+from voron_toolkit.constants import PR_COMMENT_TAG, ExtendedResultEnum, ToolResult
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
 OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
@@ -22,23 +20,14 @@ VORON_CI_STEP_SUMMARY_ENV_VAR = "VORON_TOOLKIT_GH_STEP_SUMMARY"
 VORON_CI_GITHUB_TOKEN_ENV_VAR = "VORON_CI_GITHUB_TOKEN"  # noqa: S105
 
 
-@dataclass
-class ActionResult:
-    action_id: str
-    action_name: str
-    outcome: StepResult
-    summary: ActionSummary
-
-
 class GithubActionHelper:
-    def __init__(self: Self, *, ignore_warnings: bool = False) -> None:
+    def __init__(self: Self) -> None:
         output_path_var: str | None = os.environ.get(VORON_CI_OUTPUT_ENV_VAR, None)
         github_step_summary: str | None = os.environ.get(VORON_CI_STEP_SUMMARY_ENV_VAR, "False")
         self.output_path: Path | None = Path(output_path_var) if output_path_var else None
         self.artifacts: dict[str, str | bytes] = {}
         self.github_output: StringIO = StringIO()
         self.do_gh_step_summary: bool = bool(github_step_summary)
-        self.ignore_warnings: bool = ignore_warnings
 
     def set_output(self: Self, output: dict[str, str]) -> None:
         for key, value in output.items():
@@ -61,35 +50,30 @@ class GithubActionHelper:
     def write_outputs(self: Self) -> None:
         self._write_outputs()
 
-    def _write_step_summary(self: Self, action_result: ActionResult) -> None:
+    def _write_step_summary(self: Self, action_result: ToolResult) -> None:
         if self.do_gh_step_summary:
             with Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).open("a") as gh_step_summary:
-                gh_step_summary.write(f"### {action_result.action_name}\n\n")
-                gh_step_summary.write(action_result.summary.to_markdown(result_ok=False))
+                gh_step_summary.write(f"### {action_result.tool_name}\n\n")
+                gh_step_summary.write(action_result.tool_result_items.to_markdown())
 
-    def _write_artifacts(self: Self, action_result: ActionResult) -> None:
+    def _write_artifacts(self: Self, action_result: ToolResult) -> None:
         if self.output_path:
-            Path.mkdir(Path(self.output_path, action_result.action_id), parents=True, exist_ok=True, mode=0o755)
+            Path.mkdir(Path(self.output_path, action_result.tool_id), parents=True, exist_ok=True, mode=0o755)
             for artifact_path, artifact_contents in self.artifacts.items():
-                Path.mkdir(Path(self.output_path, action_result.action_id, artifact_path).parent, parents=True, exist_ok=True)
-                with Path(self.output_path, action_result.action_id, artifact_path).open(mode="wb" if isinstance(artifact_contents, bytes) else "w") as f:
+                Path.mkdir(Path(self.output_path, action_result.tool_id, artifact_path).parent, parents=True, exist_ok=True)
+                with Path(self.output_path, action_result.tool_id, artifact_path).open(mode="wb" if isinstance(artifact_contents, bytes) else "w") as f:
                     f.write(artifact_contents)
-            with Path(self.output_path, action_result.action_id, "summary.md").open("w") as f:
-                f.write(action_result.summary.to_markdown(result_ok=action_result.outcome == StepResult.SUCCESS))
-            with Path(self.output_path, action_result.action_id, "outcome.txt").open("w") as f:
-                if action_result.outcome == StepResult.SUCCESS or (action_result.outcome == StepResult.WARNING and self.ignore_warnings):
-                    f.write(StepResult.SUCCESS.name)
-                else:
-                    f.write(action_result.outcome.name)
+            with Path(self.output_path, action_result.tool_id, "tool_result.json").open("w") as f:
+                f.write(action_result.to_json())
 
-    def finalize_action(self: Self, action_result: ActionResult) -> None:
+    def finalize_action(self: Self, action_result: ToolResult) -> None:
         self._write_outputs()
         self._write_step_summary(action_result=action_result)
         self._write_artifacts(action_result=action_result)
 
-        result_ok = StepResult.WARNING if self.ignore_warnings else StepResult.SUCCESS
-        if action_result.outcome > result_ok:
-            logger.error("Error detected while performing action '{}' (result: '{}')!", action_result.action_name, action_result.outcome)
+        result_ok = ExtendedResultEnum.WARNING if action_result.tool_ignore_warnings else ExtendedResultEnum.SUCCESS
+        if action_result.extended_result > result_ok:
+            logger.error("Error detected while performing action '{}' (result: '{}')!", action_result.tool_name, action_result.extended_result)
             sys.exit(255)
 
     @classmethod

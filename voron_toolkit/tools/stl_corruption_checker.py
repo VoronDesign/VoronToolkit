@@ -1,4 +1,5 @@
 import tempfile
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Self
@@ -7,10 +8,9 @@ import configargparse
 from admesh import Stl
 from loguru import logger
 
-from voron_toolkit.constants import StepIdentifier, StepResult
-from voron_toolkit.utils.action_summary import ActionSummaryTable
+from voron_toolkit.constants import ExtendedResultEnum, ItemResult, ToolIdentifierEnum, ToolResult, ToolSummaryTable
 from voron_toolkit.utils.file_helper import FileHelper
-from voron_toolkit.utils.github_action_helper import ActionResult, GithubActionHelper
+from voron_toolkit.utils.github_action_helper import GithubActionHelper
 from voron_toolkit.utils.logging import init_logging
 
 ENV_VAR_PREFIX = "CORRUPTION_CHECKER"
@@ -19,9 +19,10 @@ ENV_VAR_PREFIX = "CORRUPTION_CHECKER"
 class STLCorruptionChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
         self.input_dir: Path = Path(Path.cwd(), args.input_dir)
-        self.return_status: StepResult = StepResult.SUCCESS
-        self.check_summary: list[list[str]] = []
-        self.gh_helper: GithubActionHelper = GithubActionHelper(ignore_warnings=args.ignore_warnings)
+        self.return_status: ExtendedResultEnum = ExtendedResultEnum.SUCCESS
+        self.result_items: defaultdict[ExtendedResultEnum, list[ItemResult]] = defaultdict(list)
+        self.gh_helper: GithubActionHelper = GithubActionHelper()
+        self.ignore_warnings = args.ignore_warnings
 
         init_logging(verbose=args.verbose)
 
@@ -32,20 +33,21 @@ class STLCorruptionChecker:
         stl_paths: list[Path] = FileHelper.find_files_by_extension(directory=self.input_dir, extension="stl", max_files=40)
 
         with ThreadPoolExecutor() as pool:
-            return_statuses: list[StepResult] = list(pool.map(self._check_stl, stl_paths))
+            return_statuses: list[ExtendedResultEnum] = list(pool.map(self._check_stl, stl_paths))
         if return_statuses:
             self.return_status = max(*return_statuses, self.return_status)
         else:
-            self.return_status = StepResult.SUCCESS
+            self.return_status = ExtendedResultEnum.SUCCESS
 
         self.gh_helper.finalize_action(
-            action_result=ActionResult(
-                action_id=StepIdentifier.CORRUPTION_CHECK.step_id,
-                action_name=StepIdentifier.CORRUPTION_CHECK.step_name,
-                outcome=self.return_status,
-                summary=ActionSummaryTable(
-                    columns=["Filename", "Result", "Number of STL fixes applicable "],
-                    rows=self.check_summary,
+            action_result=ToolResult(
+                tool_id=ToolIdentifierEnum.CORRUPTION_CHECK.tool_id,
+                tool_name=ToolIdentifierEnum.CORRUPTION_CHECK.tool_name,
+                extended_result=self.return_status,
+                tool_ignore_warnings=self.ignore_warnings,
+                tool_result_items=ToolSummaryTable(
+                    extra_columns=["Number of STL fixes applicable"],
+                    items=self.result_items,
                 ),
             )
         )
@@ -58,7 +60,7 @@ class STLCorruptionChecker:
         self.gh_helper.set_artifact(file_name=path.as_posix(), file_contents=Path(temp_file.name).read_bytes())
         temp_file.close()
 
-    def _check_stl(self: Self, stl_file_path: Path) -> StepResult:
+    def _check_stl(self: Self, stl_file_path: Path) -> ExtendedResultEnum:
         try:
             stl: Stl = Stl(stl_file_path.as_posix())
             stl.repair(verbose_flag=False)
@@ -74,20 +76,16 @@ class STLCorruptionChecker:
                 number_of_errors: int = sum(
                     int(stl.stats[key]) for key in ["edges_fixed", "backwards_edges", "degenerate_facets", "facets_removed", "facets_added", "facets_reversed"]
                 )
-                self.check_summary.append([stl_file_path.name, f"{StepResult.FAILURE.result_icon} {StepResult.FAILURE.name}", str(number_of_errors)])
+                self.result_items[ExtendedResultEnum.FAILURE].append(ItemResult(item=stl_file_path.name, extra_info=[str(number_of_errors)]))
                 self._write_fixed_stl_file(stl=stl, path=Path(stl_file_path.relative_to(self.input_dir)))
-                return StepResult.FAILURE
+                return ExtendedResultEnum.FAILURE
             logger.success("STL '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
-            self.check_summary.append(
-                [stl_file_path.name, StepResult.SUCCESS.result_icon, "0"],
-            )
-            return StepResult.SUCCESS
+            self.result_items[ExtendedResultEnum.SUCCESS].append(ItemResult(item=stl_file_path.name, extra_info=["0"]))
+            return ExtendedResultEnum.SUCCESS
         except Exception:  # noqa: BLE001
             logger.critical("A fatal error occurred while checking '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
-            self.check_summary.append(
-                [stl_file_path.name, StepResult.EXCEPTION.result_icon, "0"],
-            )
-            return StepResult.EXCEPTION
+            self.result_items[ExtendedResultEnum.EXCEPTION].append(ItemResult(item=stl_file_path.name, extra_info=["Exception occurred while STL parsing!"]))
+            return ExtendedResultEnum.EXCEPTION
 
 
 def main() -> None:
