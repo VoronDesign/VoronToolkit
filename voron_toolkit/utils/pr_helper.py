@@ -43,8 +43,6 @@ class PrHelper:
         self.workflow_run_id: str = args.workflow_run_id
         self.github_repository: str = args.github_repository
         self.tmp_path: Path = Path()
-        self.pr_number: int = -1
-        self.comment_body: str = ""
         self.tool_results: dict[ToolIdentifierEnum, ToolResult] = {}
 
         init_logging(verbose=args.verbose)
@@ -119,7 +117,6 @@ class PrHelper:
             ci_step_result = ToolResult.from_json(Path(self.tmp_path, pr_step_identifier.tool_id, "tool_result.json").read_text())
             result_ok = ExtendedResultEnum.WARNING if ci_step_result.tool_ignore_warnings else ExtendedResultEnum.SUCCESS
             if ci_step_result.extended_result > result_ok:
-                logger.warning("PING")
                 labels.add(CI_FAILURE_LABEL)
 
             self.tool_results[pr_step_identifier] = ci_step_result
@@ -149,7 +146,7 @@ class PrHelper:
 
             pr_number: int = self._get_pr_number()
             labels: set[str] = self._parse_artifact_and_get_labels()
-            if self.pr_number > 0:
+            if pr_number > 0:
                 GithubActionHelper.set_labels_on_pull_request(
                     repo=self.github_repository,
                     pull_request_number=pr_number,
