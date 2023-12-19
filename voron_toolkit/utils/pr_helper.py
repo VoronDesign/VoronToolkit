@@ -36,6 +36,8 @@ I am a 🤖, this comment was generated automatically!
 *Made with ❤️ by the VoronDesign GitHub Team*
 """
 
+ALL_LABELS = [CI_ERROR_LABEL, CI_FAILURE_LABEL, CI_PASSED_LABEL]
+
 
 class PrHelper:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
@@ -118,9 +120,15 @@ class PrHelper:
             result_ok = ExtendedResultEnum.WARNING if ci_step_result.tool_ignore_warnings else ExtendedResultEnum.SUCCESS
             if ci_step_result.extended_result > result_ok:
                 labels.add(CI_FAILURE_LABEL)
-
+            logger.success(
+                "Parsed result for tool {}: Result: {}, Ignore Warnings: {}",
+                pr_step_identifier,
+                ci_step_result.extended_result,
+                ci_step_result.tool_ignore_warnings,
+            )
             self.tool_results[pr_step_identifier] = ci_step_result
         if not labels:
+            logger.success("All CI checks executed without errors!")
             labels.add(CI_PASSED_LABEL)
         logger.info("Labels: {}", labels)
         return labels
@@ -145,17 +153,25 @@ class PrHelper:
             )
 
             pr_number: int = self._get_pr_number()
-            labels: set[str] = self._parse_artifact_and_get_labels()
+            logger.info("Post Processing PR #{}", pr_number)
             if pr_number > 0:
+                labels_to_set: set[str] = self._parse_artifact_and_get_labels()
+                labels_on_pr: list[str] = GithubActionHelper.get_labels_on_pull_request(
+                    repo=self.github_repository,
+                    pull_request_number=pr_number,
+                )
+                labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in ALL_LABELS]
+
                 GithubActionHelper.set_labels_on_pull_request(
                     repo=self.github_repository,
                     pull_request_number=pr_number,
-                    labels=list(labels),
+                    labels=list(*labels_to_set, *labels_to_preserve),
                 )
+                pr_comment: str = self._generate_pr_comment()
                 GithubActionHelper.update_or_create_pr_comment(
                     repo=self.github_repository,
                     pull_request_number=pr_number,
-                    comment_body=self._generate_pr_comment(),
+                    comment_body=pr_comment,
                 )
 
 

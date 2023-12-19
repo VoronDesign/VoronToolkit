@@ -117,6 +117,12 @@ class GithubActionHelper:
         return ""
 
     @classmethod
+    def get_labels_on_pull_request(cls: type[Self], repo: str, pull_request_number: int) -> list[str]:
+        github = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
+        response: Response = github.rest.issues.list_labels_on_issue(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number)
+        return [label["name"] for label in response.json()]
+
+    @classmethod
     def set_labels_on_pull_request(cls: type[Self], repo: str, pull_request_number: int, labels: list[str]) -> None:
         github = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
         github.rest.issues.set_labels(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number, labels=labels)
