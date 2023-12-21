@@ -112,7 +112,7 @@ class ReadmeGenerator:
         readme_rows: list[list[str]] = []
         prev_username: str = ""
         logger.info("Generating rows for {} mods", len(mods))
-        for mod in mods:
+        for mod in sorted(mods, key=lambda x: x["path"]):
             readme_rows.append(
                 [
                     mod["creator"] if mod["creator"] != prev_username else "",

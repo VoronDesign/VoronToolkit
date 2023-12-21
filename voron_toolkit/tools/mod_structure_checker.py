@@ -83,7 +83,7 @@ class ModStructureChecker:
                 continue
 
             if "cad" in metadata and not metadata["cad"]:
-                logger.warning("Mod '{}' has no CAD files!", mod_folder)
+                logger.error("Mod '{}' has no CAD files!", mod_folder)
                 self.result_items[ExtendedResultEnum.FAILURE].append(
                     ItemResult(
                         item=mod_folder_relative,
