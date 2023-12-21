@@ -1,3 +1,4 @@
+import contextlib
 import os
 import sys
 import tempfile
@@ -9,9 +10,11 @@ import configargparse
 from loguru import logger
 
 from voron_toolkit.constants import (
+    ALL_CI_LABELS,
     CI_ERROR_LABEL,
     CI_FAILURE_LABEL,
     CI_PASSED_LABEL,
+    READY_FOR_CI_LABEL,
     VORONUSERS_PR_COMMENT_SECTIONS,
     ExtendedResultEnum,
     ItemResult,
@@ -35,8 +38,6 @@ I am a 🤖, this comment was generated automatically!
 
 *Made with ❤️ by the VoronDesign GitHub Team*
 """
-
-ALL_LABELS = [CI_ERROR_LABEL, CI_FAILURE_LABEL, CI_PASSED_LABEL]
 
 
 class PrHelper:
@@ -160,12 +161,18 @@ class PrHelper:
                     repo=self.github_repository,
                     pull_request_number=pr_number,
                 )
-                labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in ALL_LABELS]
+                labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in ALL_CI_LABELS]
+
+                updated_labels: list[str] = [*labels_to_set, *labels_to_preserve]
+
+                # Make sure to remove the "Ready for CI" label if it is present
+                with contextlib.suppress(ValueError):
+                    updated_labels.remove(READY_FOR_CI_LABEL)
 
                 GithubActionHelper.set_labels_on_pull_request(
                     repo=self.github_repository,
                     pull_request_number=pr_number,
-                    labels=[*labels_to_set, *labels_to_preserve],
+                    labels=updated_labels,
                 )
                 pr_comment: str = self._generate_pr_comment()
                 GithubActionHelper.update_or_create_pr_comment(
