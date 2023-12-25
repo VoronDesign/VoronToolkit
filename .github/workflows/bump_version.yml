@@ -44,7 +44,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ steps.tag_version.outputs.new_tag }}
+            type=semver,pattern=v{{major}}.{{minor}}.{{patch}},value=${{ steps.tag_version.outputs.new_version }}
+            type=semver,pattern=v{{major}}.{{minor}},value=${{ steps.tag_version.outputs.new_version }}
+            type=semver,pattern=v{{major}},value=${{ steps.tag_version.outputs.new_version }}
             type=raw,value=latest
       - name: Build and push Docker image
         if: ${{ steps.tag_version.outputs.new_tag != steps.tag_version.outputs.previous_tag }}
