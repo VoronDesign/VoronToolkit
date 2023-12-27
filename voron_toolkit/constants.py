@@ -114,11 +114,11 @@ class ToolIdentifierEnum(ToolIdentifier, Enum):
     MOD_STRUCTURE_CHECK = ToolIdentifier(tool_id="mod_structure_check", tool_name="Mod structure checker")
     README_GENERATOR = ToolIdentifier(tool_id="readme_generator", tool_name="Readme generator")
     ROTATION_CHECK = ToolIdentifier(tool_id="rotation_check", tool_name="STL rotation checker")
-    WHITESPACE_CHECK = ToolIdentifier(tool_id="whitespace_check", tool_name="Whitespace checker")
+    FILE_CHECK = ToolIdentifier(tool_id="file_check", tool_name="File checker")
 
 
 VORONUSERS_PR_COMMENT_SECTIONS: list[ToolIdentifierEnum] = [
-    ToolIdentifierEnum.WHITESPACE_CHECK,
+    ToolIdentifierEnum.FILE_CHECK,
     ToolIdentifierEnum.MOD_STRUCTURE_CHECK,
     ToolIdentifierEnum.CORRUPTION_CHECK,
     ToolIdentifierEnum.ROTATION_CHECK,

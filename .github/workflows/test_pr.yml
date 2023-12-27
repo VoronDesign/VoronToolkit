@@ -39,13 +39,15 @@ jobs:
         run: |
           mkdir -p ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
           echo -n ${{ github.event.number }} > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/pr_number.txt
-      # Run whitespace checks based on files in the test directory
-      - name: Check for whitespace in folders/filenames 🔍
+      # Run whitespace/licenses/file sizes based on files in the test directory
+      - name: Check files for whitespace/licenses/file sizes 🔍
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
-          WHITESPACE_CHECKER_IGNORE_WARNINGS: false
+          FILE_CHECKER_IGNORE_WARNINGS: false
+          FILE_CHECKER_CHECK_LICENSE: true
+          FILE_CHECKER_CHECK_FILE_SIZE_MB: 2
         with:
-          args: check-whitespace
+          args: check-files
       - name: Check correct mod/file structure 🔍
         if: '!cancelled()'
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest

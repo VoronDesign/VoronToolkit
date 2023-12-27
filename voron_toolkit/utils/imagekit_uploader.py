@@ -83,10 +83,13 @@ class ImageKitUploader:
             logger.info("Processing Image files in '{}'", self.tmp_path.as_posix())
 
             images: list[Path] = list(self.image_base_path.glob("**/*.png"))
-            logger.success("Found {} images", len(images))
+
+            # This will also catch the case where the image_base_path does not exist
             if not images:
                 logger.warning("No images found in input_dir '{}'!", self.image_base_path.as_posix())
                 return
+
+            logger.success("Found {} images", len(images))
             with ThreadPoolExecutor() as pool:
                 results: Iterator[bool] = pool.map(self.upload_image, images)
 

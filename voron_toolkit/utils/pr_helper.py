@@ -153,6 +153,11 @@ class PrHelper:
                 target_directory=self.tmp_path,
             )
 
+            # Check if the artifact directory is empty, this might happen when the parent workflow did not execute any checks
+            if any(self.tmp_path.iterdir()):
+                logger.warning("Artifact {} for run_id {} is empty!", self.artifact_name, self.workflow_run_id)
+                return
+
             pr_number: int = self._get_pr_number()
             logger.info("Post Processing PR #{}", pr_number)
             if pr_number > 0:
