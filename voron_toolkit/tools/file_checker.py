@@ -33,14 +33,16 @@ class WhitespaceChecker:
     def _check_for_whitespace(self: Self) -> None:
         for input_file in self.input_file_list:
             relative_file_path: str = input_file.relative_to(self.input_dir).as_posix()
-            result_ok: bool = all(c not in string.whitespace for c in relative_file_path)
+            result_ok: bool = all(c in string.ascii_letters + string.digits + r"/\[]()_-." for c in relative_file_path)
 
             if result_ok:
                 logger.success("File '{}' OK!", input_file)
                 self.result_items[ExtendedResultEnum.SUCCESS].append(ItemResult(item=relative_file_path, extra_info=[""]))
             else:
-                logger.error("File '{}' contains whitespace!", relative_file_path)
-                self.result_items[ExtendedResultEnum.FAILURE].append(ItemResult(item=relative_file_path, extra_info=["This file contains whitespace!"]))
+                logger.error("File-path '{}' contains illegal characters!", relative_file_path)
+                self.result_items[ExtendedResultEnum.FAILURE].append(
+                    ItemResult(item=relative_file_path, extra_info=["This file-path contains illegal characters!"])
+                )
                 self.return_status = ExtendedResultEnum.FAILURE
 
     def _check_for_license_files(self: Self) -> None:
