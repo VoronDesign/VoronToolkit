@@ -77,7 +77,16 @@ class PrHelper:
 
         for tool_identifier, tool_result in self.tool_results.items():
             self.overview_table_contents.append(
-                [tool_identifier.tool_name, *[str(len(tool_result.tool_result_items.items[extended_result])) for extended_result in ExtendedResultEnum]]
+                [
+                    tool_identifier.tool_name,
+                    *[
+                        str(len(tool_result.tool_result_items.items[extended_result]))
+                        # Leave the cell blank if the result is 0
+                        if len(tool_result.tool_result_items.items[extended_result]) > 0
+                        else " "
+                        for extended_result in ExtendedResultEnum
+                    ],
+                ]
             )
 
         tool_overview += ToolSummaryTable.create_markdown_table(
@@ -86,8 +95,15 @@ class PrHelper:
         return tool_overview
 
     def _result_details_for_extended_result(self: Self, extended_result: ExtendedResultEnum) -> str:
+        # Determine whether the result has any items, if not, we can skip it
+        extended_result_has_items: bool = False
+
         result_details = ""
-        result_details += "<details>\n"
+        # Expand the lists (except the SUCCESS one)
+        if extended_result != ExtendedResultEnum.SUCCESS:
+            result_details += "<details open>\n"
+        else:
+            result_details += "<details>\n"
         result_details += f"<summary>{extended_result.name}: {extended_result.icon}</summary>\n\n"
 
         for pr_step_identifier in VORONUSERS_PR_COMMENT_SECTIONS:
@@ -96,11 +112,13 @@ class PrHelper:
             filtered_markdown_table = self.tool_results[pr_step_identifier].tool_result_items.to_markdown(filter_result=extended_result)
             if not filtered_markdown_table:
                 continue
+            # If we reached here, we have contents in the table, so we set the flag
+            extended_result_has_items = True
             result_details += f"#### {pr_step_identifier.tool_name}\n\n"
             result_details += filtered_markdown_table
             result_details += "\n---\n\n"
         result_details += "\n</details>\n"
-        return result_details
+        return result_details if extended_result_has_items else ""
 
     def _parse_artifact_and_get_labels(self: Self) -> set[str]:
         labels: set[str] = set()
