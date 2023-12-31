@@ -1,4 +1,3 @@
-import contextlib
 import os
 import sys
 import tempfile
@@ -14,7 +13,6 @@ from voron_toolkit.constants import (
     CI_ERROR_LABEL,
     CI_FAILURE_LABEL,
     CI_PASSED_LABEL,
-    READY_FOR_CI_LABEL,
     VORONUSERS_PR_COMMENT_SECTIONS,
     ExtendedResultEnum,
     ItemResult,
@@ -158,6 +156,9 @@ class PrHelper:
             sys.exit(255)
         return int(Path(self.tmp_path, "pr_number.txt").read_text())
 
+    def _check_if_parent_workflow_skipped(self: Self) -> bool:
+        return bool(Path(self.tmp_path, "ci_skipped.txt").exists())
+
     def run(self: Self) -> None:
         logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -177,8 +178,9 @@ class PrHelper:
                 return
 
             pr_number: int = self._get_pr_number()
+            parent_workflow_skipped: bool = self._check_if_parent_workflow_skipped()
             logger.info("Post Processing PR #{}", pr_number)
-            if pr_number > 0:
+            if pr_number > 0 and not parent_workflow_skipped:
                 labels_to_set: set[str] = self._parse_artifact_and_get_labels()
                 labels_on_pr: list[str] = GithubActionHelper.get_labels_on_pull_request(
                     repo=self.github_repository,
@@ -187,10 +189,6 @@ class PrHelper:
                 labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in ALL_CI_LABELS]
 
                 updated_labels: list[str] = [*labels_to_set, *labels_to_preserve]
-
-                # Make sure to remove the "Ready for CI" label if it is present
-                with contextlib.suppress(ValueError):
-                    updated_labels.remove(READY_FOR_CI_LABEL)
 
                 GithubActionHelper.set_labels_on_pull_request(
                     repo=self.github_repository,
@@ -202,6 +200,20 @@ class PrHelper:
                     repo=self.github_repository,
                     pull_request_number=pr_number,
                     comment_body=pr_comment,
+                )
+            else:
+                logger.info("Workflow {} for PR #{} was skipped. Dismissing all labels!", self.workflow_run_id, pr_number)
+                GithubActionHelper.set_labels_on_pull_request(
+                    repo=self.github_repository,
+                    pull_request_number=pr_number,
+                    labels=[
+                        label
+                        for label in GithubActionHelper.get_labels_on_pull_request(
+                            repo=self.github_repository,
+                            pull_request_number=pr_number,
+                        )
+                        if label not in ALL_CI_LABELS
+                    ],
                 )
 
 
