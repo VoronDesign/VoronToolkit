@@ -1,4 +1,5 @@
 import json
+import os
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
@@ -9,6 +10,7 @@ CI_FAILURE_LABEL: str = "CI: Issues identified"
 CI_ERROR_LABEL: str = "Warning: CI Error"
 READY_FOR_CI_LABEL: str = "Ready for CI"
 PR_COMMENT_TAG: str = "<!-- voron_docker_toolkit -->"
+PR_COMMENT_TOOLKIT_VERSION: str = f"<!-- Toolkit version {os.environ.get('VORON_TOOLKIT_VERSION', '<unknown>')} -->"
 ALL_CI_LABELS: list[str] = [CI_PASSED_LABEL, CI_FAILURE_LABEL, CI_ERROR_LABEL, READY_FOR_CI_LABEL]
 
 

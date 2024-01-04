@@ -11,7 +11,7 @@ from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from githubkit import GitHub, Response
 from loguru import logger
 
-from voron_toolkit.constants import PR_COMMENT_TAG, ExtendedResultEnum, ToolResult
+from voron_toolkit.constants import PR_COMMENT_TAG, PR_COMMENT_TOOLKIT_VERSION, ExtendedResultEnum, ToolResult
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
 OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
@@ -178,7 +178,7 @@ class GithubActionHelper:
                 comment_id = int(existing_comment["id"])
                 break
 
-        full_comment = f"{comment_body}\n\n{PR_COMMENT_TAG}\n"
+        full_comment = f"{comment_body}\n\n{PR_COMMENT_TAG}\n\n{PR_COMMENT_TOOLKIT_VERSION}"
 
         if comment_id == -1:
             # Create a new comment
