@@ -44,8 +44,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ steps.tag_version.outputs.new_tag }}
-            type=raw,value=latest
+            type=semver,pattern=v{{major}}.{{minor}}.{{patch}},value=${{ steps.tag_version.outputs.new_version }}
+            type=semver,pattern=v{{major}}.{{minor}},value=${{ steps.tag_version.outputs.new_version }}
+            type=semver,pattern=v{{major}},value=${{ steps.tag_version.outputs.new_version }}
       - name: Build and push Docker image
         if: ${{ steps.tag_version.outputs.new_tag != steps.tag_version.outputs.previous_tag }}
         uses: docker/build-push-action@v5
@@ -54,6 +55,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            TOOLKIT_VERSION=${{ steps.tag_version.outputs.new_version }}
       - name: Create a GitHub release
         uses: ncipollo/release-action@v1
         with:

@@ -1,6 +1,7 @@
 import tempfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from enum import IntEnum
 from pathlib import Path
 from typing import Self
 
@@ -14,6 +15,12 @@ from voron_toolkit.utils.github_action_helper import GithubActionHelper
 from voron_toolkit.utils.logging import init_logging
 
 ENV_VAR_PREFIX = "CORRUPTION_CHECKER"
+
+
+class StlType(IntEnum):
+    BINARY = 0
+    ASCII = 1
+    IN_MEMORY = 2
 
 
 class STLCorruptionChecker:
@@ -61,6 +68,7 @@ class STLCorruptionChecker:
         temp_file.close()
 
     def _check_stl(self: Self, stl_file_path: Path) -> ExtendedResultEnum:
+        stl_path_relative: str = stl_file_path.relative_to(self.input_dir).as_posix()
         try:
             stl: Stl = Stl(stl_file_path.as_posix())
             stl.repair(verbose_flag=False)
@@ -72,18 +80,24 @@ class STLCorruptionChecker:
                 or stl.stats["facets_added"] > 0
                 or stl.stats["facets_reversed"] > 0
             ):
-                logger.error("Corrupt STL detected '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
+                logger.error("Corrupt STL detected '{}'!", stl_path_relative)
                 number_of_errors: int = sum(
                     int(stl.stats[key]) for key in ["edges_fixed", "backwards_edges", "degenerate_facets", "facets_removed", "facets_added", "facets_reversed"]
                 )
                 self.result_items[ExtendedResultEnum.FAILURE].append(ItemResult(item=stl_file_path.name, extra_info=[str(number_of_errors)]))
-                self._write_fixed_stl_file(stl=stl, path=Path(stl_file_path.relative_to(self.input_dir)))
+                self._write_fixed_stl_file(stl=stl, path=Path(stl_path_relative))
                 return ExtendedResultEnum.FAILURE
-            logger.success("STL '{}' OK!", stl_file_path.relative_to(self.input_dir).as_posix())
+            if stl.stats["type"] != StlType.BINARY:
+                logger.warning("STL '{}' is not a binary STL. Detected Type: '{}' !", stl_path_relative, StlType(int(stl.stats["type"])).name)
+                self.result_items[ExtendedResultEnum.WARNING].append(
+                    ItemResult(item=stl_file_path.name, extra_info=["STL is not a binary STL. Consider converting it to save space!"])
+                )
+                return ExtendedResultEnum.WARNING
+            logger.success("STL '{}' OK!", stl_path_relative)
             self.result_items[ExtendedResultEnum.SUCCESS].append(ItemResult(item=stl_file_path.name, extra_info=["0"]))
             return ExtendedResultEnum.SUCCESS
         except Exception:  # noqa: BLE001
-            logger.critical("A fatal error occurred while checking '{}'!", stl_file_path.relative_to(self.input_dir).as_posix())
+            logger.critical("A fatal error occurred while checking '{}'!", stl_path_relative)
             self.result_items[ExtendedResultEnum.EXCEPTION].append(ItemResult(item=stl_file_path.name, extra_info=["Exception occurred while STL parsing!"]))
             return ExtendedResultEnum.EXCEPTION
 

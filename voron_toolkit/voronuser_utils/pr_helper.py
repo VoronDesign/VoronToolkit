@@ -9,6 +9,7 @@ import configargparse
 from loguru import logger
 
 from voron_toolkit.constants import (
+    ALL_CI_LABELS,
     CI_ERROR_LABEL,
     CI_FAILURE_LABEL,
     CI_PASSED_LABEL,
@@ -76,7 +77,16 @@ class PrHelper:
 
         for tool_identifier, tool_result in self.tool_results.items():
             self.overview_table_contents.append(
-                [tool_identifier.tool_name, *[str(len(tool_result.tool_result_items.items[extended_result])) for extended_result in ExtendedResultEnum]]
+                [
+                    tool_identifier.tool_name,
+                    *[
+                        str(len(tool_result.tool_result_items.items[extended_result]))
+                        # Leave the cell blank if the result is 0
+                        if len(tool_result.tool_result_items.items[extended_result]) > 0
+                        else " "
+                        for extended_result in ExtendedResultEnum
+                    ],
+                ]
             )
 
         tool_overview += ToolSummaryTable.create_markdown_table(
@@ -85,8 +95,15 @@ class PrHelper:
         return tool_overview
 
     def _result_details_for_extended_result(self: Self, extended_result: ExtendedResultEnum) -> str:
+        # Determine whether the result has any items, if not, we can skip it
+        extended_result_has_items: bool = False
+
         result_details = ""
-        result_details += "<details>\n"
+        # Expand the lists (except the SUCCESS one)
+        if extended_result != ExtendedResultEnum.SUCCESS:
+            result_details += "<details open>\n"
+        else:
+            result_details += "<details>\n"
         result_details += f"<summary>{extended_result.name}: {extended_result.icon}</summary>\n\n"
 
         for pr_step_identifier in VORONUSERS_PR_COMMENT_SECTIONS:
@@ -95,11 +112,13 @@ class PrHelper:
             filtered_markdown_table = self.tool_results[pr_step_identifier].tool_result_items.to_markdown(filter_result=extended_result)
             if not filtered_markdown_table:
                 continue
+            # If we reached here, we have contents in the table, so we set the flag
+            extended_result_has_items = True
             result_details += f"#### {pr_step_identifier.tool_name}\n\n"
             result_details += filtered_markdown_table
             result_details += "\n---\n\n"
         result_details += "\n</details>\n"
-        return result_details
+        return result_details if extended_result_has_items else ""
 
     def _parse_artifact_and_get_labels(self: Self) -> set[str]:
         labels: set[str] = set()
@@ -139,6 +158,9 @@ class PrHelper:
             sys.exit(255)
         return int(Path(self.tmp_path, "pr_number.txt").read_text())
 
+    def _check_if_parent_workflow_skipped(self: Self) -> bool:
+        return bool(Path(self.tmp_path, "ci_skipped.txt").exists())
+
     def run(self: Self) -> None:
         logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -152,26 +174,52 @@ class PrHelper:
                 target_directory=self.tmp_path,
             )
 
+            # Check if the artifact directory is empty, this might happen when the parent workflow did not execute any checks
+            if not any(self.tmp_path.iterdir()):
+                logger.warning(
+                    "Result folder {} for run_id {} is empty! This may be due to a missing artifact or a skipped workflow run!",
+                    self.artifact_name,
+                    self.workflow_run_id,
+                )
+                return
+
             pr_number: int = self._get_pr_number()
+            parent_workflow_skipped: bool = self._check_if_parent_workflow_skipped()
             logger.info("Post Processing PR #{}", pr_number)
-            if pr_number > 0:
+            if pr_number > 0 and not parent_workflow_skipped:
                 labels_to_set: set[str] = self._parse_artifact_and_get_labels()
                 labels_on_pr: list[str] = GithubActionHelper.get_labels_on_pull_request(
                     repo=self.github_repository,
                     pull_request_number=pr_number,
                 )
-                labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in ALL_LABELS]
+                labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in ALL_CI_LABELS]
+
+                updated_labels: list[str] = [*labels_to_set, *labels_to_preserve]
 
                 GithubActionHelper.set_labels_on_pull_request(
                     repo=self.github_repository,
                     pull_request_number=pr_number,
-                    labels=list(*labels_to_set, *labels_to_preserve),
+                    labels=updated_labels,
                 )
                 pr_comment: str = self._generate_pr_comment()
                 GithubActionHelper.update_or_create_pr_comment(
                     repo=self.github_repository,
                     pull_request_number=pr_number,
                     comment_body=pr_comment,
+                )
+            else:
+                logger.info("Workflow {} for PR #{} was skipped. Dismissing all labels!", self.workflow_run_id, pr_number)
+                GithubActionHelper.set_labels_on_pull_request(
+                    repo=self.github_repository,
+                    pull_request_number=pr_number,
+                    labels=[
+                        label
+                        for label in GithubActionHelper.get_labels_on_pull_request(
+                            repo=self.github_repository,
+                            pull_request_number=pr_number,
+                        )
+                        if label not in ALL_CI_LABELS
+                    ],
                 )
 
 

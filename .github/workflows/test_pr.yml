@@ -2,9 +2,10 @@ name: VoronCI PR Test CI
 run-name: "#${{github.event.number}} - ${{github.event.pull_request.title}}"
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, labeled]
 jobs:
     voron_ci:
+      if: ${{ contains( github.event.pull_request.labels.*.name, 'Ready for CI') }}
       env:
         VORON_TOOLKIT_OUTPUT_DIR: ${{ github.workspace }}/workflow_output
         VORON_TOOLKIT_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
@@ -19,33 +20,35 @@ jobs:
         with:
           separator: "\n"
       # Sanitize the file list
-      - name: Sanitize file list 🧹
+      - name: Prepare Sparse Checkout 🧹
         id: sanitize_file_list
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
-          FILE_LIST_SANITIZE_INPUT: ${{ steps.changed-files.outputs.all_changed_files }}
+          SPARSE_CHECKOUT_HELPER_INPUT: ${{ steps.changed-files.outputs.all_changed_files }}
         with:
-          args: sanitize-file-list
+          args: prepare-sparse-checkout
       - name: Perform sparse checkout ↪️
           # Perform a sparse checkout, checking out only the files of the PR
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         with:
           ref: ${{ github.ref }}
           path: ${{ github.workspace }}
-          sparse-checkout: ${{ steps.sanitize_file_list.outputs.FILE_LIST_SANITIZE_OUTPUT }}
+          sparse-checkout: ${{ steps.sanitize_file_list.outputs.SPARSE_CHECKOUT_HELPER_OUTPUT }}
           sparse-checkout-cone-mode: false
       - name: Store PR number 🔢
         if: '!cancelled()'
         run: |
           mkdir -p ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
           echo -n ${{ github.event.number }} > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/pr_number.txt
-      # Run whitespace checks based on files in the test directory
-      - name: Check for whitespace in folders/filenames 🔍
+      # Run whitespace/licenses/file sizes based on files in the test directory
+      - name: Check files for whitespace/licenses/file sizes 🔍
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
-          WHITESPACE_CHECKER_IGNORE_WARNINGS: false
+          FILE_CHECKER_IGNORE_WARNINGS: true
+          FILE_CHECKER_CHECK_LICENSE: true
+          FILE_CHECKER_CHECK_FILE_SIZE_MB: 2
         with:
-          args: check-whitespace
+          args: check-files
       - name: Check correct mod/file structure 🔍
         if: '!cancelled()'
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
@@ -58,7 +61,7 @@ jobs:
         if: '!cancelled()'
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
-          CORRUPTION_CHECKER_IGNORE_WARNINGS: false
+          CORRUPTION_CHECKER_IGNORE_WARNINGS: true
         with:
           args: check-stl-corruption
       # Run the rotation checker
