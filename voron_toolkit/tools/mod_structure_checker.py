@@ -83,7 +83,7 @@ class ModStructureChecker:
                 continue
 
             if "cad" in metadata and not metadata["cad"]:
-                logger.warning("Mod '{}' has no CAD files!", mod_folder)
+                logger.error("Mod '{}' has no CAD files!", mod_folder)
                 self.result_items[ExtendedResultEnum.FAILURE].append(
                     ItemResult(
                         item=mod_folder_relative,
@@ -101,7 +101,7 @@ class ModStructureChecker:
                         logger.error("File '{}' is missing in mod folder '{}'!", metadata_file, mod_folder_relative)
                         self.result_items[ExtendedResultEnum.FAILURE].append(
                             ItemResult(
-                                item=mod_folder_relative,
+                                item=f"{mod_folder_relative}/{metadata_file}",
                                 extra_info=[FileErrors.file_from_metadata_missing.value],
                             )
                         )

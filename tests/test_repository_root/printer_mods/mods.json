@@ -1,0 +1,66 @@
+[
+    {
+        "path": "1-0-R/handle",
+        "title": "V2.4 handle",
+        "creator": "1-0-R",
+        "description": "Handle for Voron 2.4",
+        "printer_compatibility": "V2.4",
+        "last_changed": "2023-12-10T23:01:31+00:00"
+    },
+    {
+        "path": "120decibell/exhaust_housing_side_entry",
+        "title": "Side entry exhaust housing",
+        "creator": "120decibell",
+        "description": "Exhaust housing with dual cover screws and single or dual side entry filament paths.",
+        "printer_compatibility": "V1.8, V2.4, VT",
+        "last_changed": "2023-12-10T23:01:31+00:00"
+    },
+    {
+        "path": "120decibell/huvud_chain_mount",
+        "title": "Huvud Chain Mount",
+        "creator": "120decibell",
+        "description": "Huvud rear mount for Clockwork or LGX that supports a cable chain.",
+        "printer_compatibility": "V1.8, VT",
+        "last_changed": "2023-12-10T23:01:31+00:00"
+    },
+    {
+        "path": "aeresov/MeanWell_UHP_DIN_mount",
+        "title": "MeanWell UHP-xxx DIN mount",
+        "creator": "aeresov",
+        "description": "A bracket for MeanWell UHP series PSU (200, 350 and 500) to mount it across 2 DIN rails.",
+        "printer_compatibility": "V2.4",
+        "last_changed": "2023-12-10T23:01:31+00:00"
+    },
+    {
+        "path": "aeresov/Raspberry_Pi_DIN_mount",
+        "title": "Raspberry Pi DIN mount",
+        "creator": "aeresov",
+        "description": "A bracket for Raspberry Pi 3/4 to mount it onto DIN rail, along or across.",
+        "printer_compatibility": "V2.4",
+        "last_changed": "2023-12-10T23:01:31+00:00"
+    },
+    {
+        "path": "aeresov/SKR_DIN_mount",
+        "title": "SKR 1.3/1.4 DIN mount",
+        "creator": "aeresov",
+        "description": "A bracket for SKR 1.3/1.4 board to mount it onto DIN rail, along or across.",
+        "printer_compatibility": "V2.4",
+        "last_changed": "2023-12-10T23:01:31+00:00"
+    },
+    {
+        "path": "aeresov/TL_filament_sensor_bracket",
+        "title": "TL filament sensor bracket",
+        "creator": "aeresov",
+        "description": "A bracket for TL filament sensor to mount near stock spool holder.",
+        "printer_compatibility": "V2.4",
+        "last_changed": "2023-12-10T23:01:31+00:00"
+    },
+    {
+        "path": "aeresov/cable_tie_DIN_mount",
+        "title": "cable tie DIN mount",
+        "creator": "aeresov",
+        "description": "A bracket for cable ties to route cables across DIN rails.",
+        "printer_compatibility": "V2.4",
+        "last_changed": "2023-12-10T23:01:31+00:00"
+    }
+]

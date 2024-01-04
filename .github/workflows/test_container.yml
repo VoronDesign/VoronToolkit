@@ -27,16 +27,18 @@ jobs:
         id: sanitize_file_list
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
-          FILE_LIST_SANITIZE_INPUT: ${{ steps.list_files.outputs.FILE_LIST }}
+          SPARSE_CHECKOUT_HELPER_INPUT: ${{ steps.list_files.outputs.FILE_LIST }}
         with:
-          args: sanitize-file-list
-      # Run whitespace checks based on files in the test directory
-      - name: Whitespace Checker
+          args: prepare-sparse-checkout
+      # Run file checks based on files in the test directory
+      - name: File Checker
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
-          WHITESPACE_CHECKER_IGNORE_WARNINGS: false
+          FILE_CHECKER_IGNORE_WARNINGS: true
+          FILE_CHECKER_CHECK_LICENSE: true
+          FILE_CHECKER_CHECK_FILE_SIZE_MB: 2
         with:
-          args: check-whitespace
+          args: check-files
       - name: Mod Structure Checker
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:

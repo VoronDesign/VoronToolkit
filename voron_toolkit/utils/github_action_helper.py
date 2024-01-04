@@ -11,7 +11,7 @@ from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from githubkit import GitHub, Response
 from loguru import logger
 
-from voron_toolkit.constants import PR_COMMENT_TAG, ExtendedResultEnum, ToolResult
+from voron_toolkit.constants import PR_COMMENT_TAG, PR_COMMENT_TOOLKIT_VERSION, ExtendedResultEnum, ToolResult
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
 OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
@@ -117,6 +117,12 @@ class GithubActionHelper:
         return ""
 
     @classmethod
+    def get_labels_on_pull_request(cls: type[Self], repo: str, pull_request_number: int) -> list[str]:
+        github = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
+        response: Response = github.rest.issues.list_labels_on_issue(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number)
+        return [label["name"] for label in response.json()]
+
+    @classmethod
     def set_labels_on_pull_request(cls: type[Self], repo: str, pull_request_number: int, labels: list[str]) -> None:
         github = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
         github.rest.issues.set_labels(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number, labels=labels)
@@ -172,7 +178,7 @@ class GithubActionHelper:
                 comment_id = int(existing_comment["id"])
                 break
 
-        full_comment = f"{comment_body}\n\n{PR_COMMENT_TAG}\n"
+        full_comment = f"{comment_body}\n\n{PR_COMMENT_TAG}\n\n{PR_COMMENT_TOOLKIT_VERSION}"
 
         if comment_id == -1:
             # Create a new comment

@@ -1,0 +1,47 @@
+---
+    name: voronusers_ci_push_main
+    on:
+        workflow_dispatch:
+    jobs:
+        generate_readme:
+            runs-on: ubuntu-latest
+            steps:
+            # Perform a sparse checkout, checking out only yaml files and the current README.md
+              - name: Perform Sparse Checkout ↪️
+                uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+                with:
+                    ref: ${{ github.ref }}
+                    sparse-checkout: |
+                        tests/test_repository_root/printer_mods/**/.metadata.yml
+                        tests/test_repository_root/printer_mods/README.md
+                        tests/test_repository_root/printer_mods/mods.json
+                    fetch-depth: 0
+                    token: ${{ secrets.VORON_BOT_GITHUB_PAT }}
+                    sparse-checkout-cone-mode: false
+            # Generate the new readme file
+              - name: Generate README 📒
+                uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
+                env:
+                    VORON_TOOLKIT_OUTPUT_DIR: _out
+                    VORON_TOOLKIT_INPUT_DIR: tests/test_repository_root/printer_mods
+                    VORON_TOOLKIT_VERBOSE: true
+                    README_GENERATOR_MARKDOWN: true
+                    README_GENERATOR_JSON: true
+                with:
+                    args: generate-readme
+            # Commit the new readme using the GH bot credentials
+              - name: Commit files 💾
+                run: |
+                    git config user.email "github@vorondesign.com"
+                    git config user.name "Voron-GitHub-Bot"
+                    tree -a _out
+                    cp _out/readme_generator/README.md tests/test_repository_root/printer_mods/README.md
+                    cp _out/readme_generator/mods.json tests/test_repository_root/printer_mods/mods.json
+                    git add tests/test_repository_root/printer_mods/README.md tests/test_repository_root/printer_mods/mods.json
+                    git commit -m "Generate VoronUsers printer_mods README.md [skip ci]" || true
+            # Push the changes
+              - name: Push changes ⬆️
+                uses: ad-m/github-push-action@d9117be7cad08757e9e906a1bcd1716d6b192db5
+                with:
+                    github_token: ${{ secrets.VORON_BOT_GITHUB_PAT }}
+                    branch: ${{ github.ref }}
