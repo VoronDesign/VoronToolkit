@@ -1,5 +1,6 @@
-FROM python:3.11.6-slim as builder
+ARG TOOLKIT_VERSION
 
+FROM python:3.11.6-slim as builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y build-essential libadmesh-dev
@@ -14,7 +15,6 @@ COPY voron_toolkit/ /app/voron_toolkit
 RUN poetry install --only-root && rm ./pyproject.toml ./poetry.lock
 
 FROM python:3.11.6-slim as test
-
 WORKDIR /app
 
 RUN pip install poetry==1.7.0
@@ -24,7 +24,8 @@ RUN poetry install --only dev
 RUN poetry run ruff voron_toolkit/ && poetry run ruff format --check voron_toolkit/ && poetry run mypy voron_toolkit
 
 FROM python:3.11.6-slim as final
-
+ARG TOOLKIT_VERSION
+ENV VORON_TOOLKIT_VERSION=${TOOLKIT_VERSION}
 WORKDIR /github/workspace
 ADD https://github.com/unlimitedbacon/stl-thumb/releases/download/v0.5.0/stl-thumb_0.5.0_amd64.deb /tmp
 RUN apt-get update && \

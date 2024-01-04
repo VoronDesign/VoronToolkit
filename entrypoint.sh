@@ -32,7 +32,7 @@ echo -e "\033[1;91m              #############"
 echo -e "\033[1;91m                 #######"
 echo -e "\033[1;91m                    #"
 echo -e "\033[39m"
-echo " Welcome to the VoronDesign Toolkit docker container!"
+echo " Welcome to the VoronDesign Toolkit docker container (v${VORON_TOOLKIT_VERSION})!"
 echo " If you encounter any issues, please report them to the VoronDesign team!"
 echo ""
 

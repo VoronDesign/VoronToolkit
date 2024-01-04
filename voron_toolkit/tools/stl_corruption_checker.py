@@ -68,9 +68,9 @@ class STLCorruptionChecker:
         temp_file.close()
 
     def _check_stl(self: Self, stl_file_path: Path) -> ExtendedResultEnum:
+        stl_path_relative: str = stl_file_path.relative_to(self.input_dir).as_posix()
         try:
             stl: Stl = Stl(stl_file_path.as_posix())
-            stl_path_relative: str = stl_file_path.relative_to(self.input_dir).as_posix()
             stl.repair(verbose_flag=False)
             if (
                 stl.stats["edges_fixed"] > 0

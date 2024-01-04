@@ -55,6 +55,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            TOOLKIT_VERSION=${{ steps.tag_version.outputs.new_version }}
       - name: Create a GitHub release
         uses: ncipollo/release-action@v1
         with:
