@@ -88,7 +88,7 @@ class STLCorruptionChecker:
                 self._write_fixed_stl_file(stl=stl, path=Path(stl_path_relative))
                 return ExtendedResultEnum.FAILURE
             if stl.stats["type"] != StlType.BINARY:
-                logger.warning("STL '{}' is not a binary STL: {} !", stl_path_relative, StlType[stl.stats["type"]])
+                logger.warning("STL '{}' is not a binary STL. Detected Type: '{}' !", stl_path_relative, StlType(int(stl.stats["type"])).name)
                 self.result_items[ExtendedResultEnum.WARNING].append(
                     ItemResult(item=stl_file_path.name, extra_info=["STL is not a binary STL. Consider converting it to save space!"])
                 )

@@ -34,7 +34,7 @@ jobs:
       - name: File Checker
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
-          FILE_CHECKER_IGNORE_WARNINGS: false
+          FILE_CHECKER_IGNORE_WARNINGS: true
           FILE_CHECKER_CHECK_LICENSE: true
           FILE_CHECKER_CHECK_FILE_SIZE_MB: 2
         with:

@@ -18,9 +18,9 @@ ENV_VAR_PREFIX = "FILE_CHECKER"
 
 class WhitespaceChecker:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
-        self.input_dir = args.input_dir
-        self.check_license = args.check_license
-        self.check_file_size = args.check_file_size_mb
+        self.input_dir: Path = Path(Path.cwd(), args.input_dir)
+        self.check_license: bool = args.check_license
+        self.check_file_size: int = args.check_file_size_mb
         self.return_status: ExtendedResultEnum = ExtendedResultEnum.SUCCESS
         self.input_file_list: list[Path] = []
         self.result_items: defaultdict[ExtendedResultEnum, list[ItemResult]] = defaultdict(list)
@@ -57,7 +57,7 @@ class WhitespaceChecker:
         for input_file in self.input_file_list:
             relative_file_path: str = input_file.relative_to(self.input_dir).as_posix()
             if input_file.stat().st_size > self.check_file_size * 1024 * 1024:
-                logger.error("File '{}' is larger than {} MB!", relative_file_path, self.check_file_size)
+                logger.warning("File '{}' is larger than {} MB!", relative_file_path, self.check_file_size)
                 self.result_items[ExtendedResultEnum.WARNING].append(
                     ItemResult(item=relative_file_path, extra_info=[f"This file is larger than {self.check_file_size} MB!"])
                 )

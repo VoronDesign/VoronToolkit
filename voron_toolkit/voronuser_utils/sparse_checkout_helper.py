@@ -37,7 +37,7 @@ class SparseCheckoutHelper:
         for pr_file in file_list:
             file_path = Path(pr_file)
             try:
-                file_path_relative: Path = file_path.relative_to(self.input_dir)
+                file_path_relative: Path = file_path.relative_to(self.input_dir.relative_to(Path.cwd()))
             except ValueError:
                 logger.warning("File '{}' is not relative to input directory '{}'. Skipping.", file_path, self.input_dir)
                 continue
