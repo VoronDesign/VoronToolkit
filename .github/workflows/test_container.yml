@@ -27,7 +27,7 @@ jobs:
         id: sanitize_file_list
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
-          FILE_LIST_SANITIZE_INPUT: ${{ steps.list_files.outputs.FILE_LIST }}
+          SPARSE_CHECKOUT_HELPER_INPUT: ${{ steps.list_files.outputs.FILE_LIST }}
         with:
           args: sanitize-file-list
       # Run file checks based on files in the test directory
