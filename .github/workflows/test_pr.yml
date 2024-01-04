@@ -25,7 +25,7 @@ jobs:
         env:
           SPARSE_CHECKOUT_HELPER_INPUT: ${{ steps.changed-files.outputs.all_changed_files }}
         with:
-          args: sanitize-file-list
+          args: prepare-sparse-checkout
       - name: Perform sparse checkout ↪️
           # Perform a sparse checkout, checking out only the files of the PR
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
