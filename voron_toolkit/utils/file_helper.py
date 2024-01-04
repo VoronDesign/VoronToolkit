@@ -43,16 +43,16 @@ class FileHelper:
     def get_all_folders(cls: type[Self], _: Path) -> list[Path]:
         return []
 
-
-def sanitize_file_list() -> None:
-    init_logging(verbose=True)
-    logger.info("============ Sanitize File List ============")
-    file_list: list[str] = os.environ.get("FILE_LIST_SANITIZE_INPUT", "").splitlines()
-    if not file_list:
-        logger.warning("Input file list from env var 'FILE_LIST_SANITIZE_INPUT' is empty")
-        return
-    output_file_list: list[str] = [input_file.replace("[", "\\[").replace("]", "\\]") for input_file in file_list]
-    gh_helper: GithubActionHelper = GithubActionHelper()
-    gh_helper.set_output_multiline(output={"FILE_LIST_SANITIZE_OUTPUT": output_file_list})
-    gh_helper.write_outputs()
-    logger.success("Sanitize file list success!")
+    @classmethod
+    def sanitize_file_list(cls: type[Self]) -> None:
+        init_logging(verbose=True)
+        logger.info("============ Sanitize File List ============")
+        file_list: list[str] = os.environ.get("FILE_LIST_SANITIZE_INPUT", "").splitlines()
+        if not file_list:
+            logger.warning("Input file list from env var 'FILE_LIST_SANITIZE_INPUT' is empty")
+            return
+        output_file_list: list[str] = [input_file.replace("[", "\\[").replace("]", "\\]") for input_file in file_list]
+        gh_helper: GithubActionHelper = GithubActionHelper()
+        gh_helper.set_output_multiline(output={"FILE_LIST_SANITIZE_OUTPUT": output_file_list})
+        gh_helper.write_outputs()
+        logger.success("Sanitize file list success!")

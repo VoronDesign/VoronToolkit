@@ -7,7 +7,9 @@ from typing import Any, NamedTuple, Self
 CI_PASSED_LABEL: str = "CI: Passed"
 CI_FAILURE_LABEL: str = "CI: Issues identified"
 CI_ERROR_LABEL: str = "Warning: CI Error"
+READY_FOR_CI_LABEL: str = "Ready for CI"
 PR_COMMENT_TAG: str = "<!-- voron_docker_toolkit -->"
+ALL_CI_LABELS: list[str] = [CI_PASSED_LABEL, CI_FAILURE_LABEL, CI_ERROR_LABEL, READY_FOR_CI_LABEL]
 
 
 class ExtendedResult(NamedTuple):
@@ -112,11 +114,11 @@ class ToolIdentifierEnum(ToolIdentifier, Enum):
     MOD_STRUCTURE_CHECK = ToolIdentifier(tool_id="mod_structure_check", tool_name="Mod structure checker")
     README_GENERATOR = ToolIdentifier(tool_id="readme_generator", tool_name="Readme generator")
     ROTATION_CHECK = ToolIdentifier(tool_id="rotation_check", tool_name="STL rotation checker")
-    WHITESPACE_CHECK = ToolIdentifier(tool_id="whitespace_check", tool_name="Whitespace checker")
+    FILE_CHECK = ToolIdentifier(tool_id="file_check", tool_name="File checker")
 
 
 VORONUSERS_PR_COMMENT_SECTIONS: list[ToolIdentifierEnum] = [
-    ToolIdentifierEnum.WHITESPACE_CHECK,
+    ToolIdentifierEnum.FILE_CHECK,
     ToolIdentifierEnum.MOD_STRUCTURE_CHECK,
     ToolIdentifierEnum.CORRUPTION_CHECK,
     ToolIdentifierEnum.ROTATION_CHECK,
