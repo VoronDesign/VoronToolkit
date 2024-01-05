@@ -1,9 +1,10 @@
+import json
 import os
 import sys
 import tempfile
 from collections import defaultdict
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 
 import configargparse
 from loguru import logger
@@ -152,14 +153,15 @@ class PrHelper:
         logger.info("Labels: {}", labels)
         return labels
 
-    def _get_pr_number(self: Self) -> int:
-        if not Path(self.tmp_path, "pr_number.txt").exists():
-            logger.error("Artifact is missing pr_number.txt file!")
+    def _get_ci_result(self: Self) -> dict[str, Any]:
+        if not Path(self.tmp_path, "ci_result.json").exists():
+            logger.error("Artifact is missing ci_result.json file!")
             sys.exit(255)
-        return int(Path(self.tmp_path, "pr_number.txt").read_text())
-
-    def _check_if_parent_workflow_skipped(self: Self) -> bool:
-        return bool(Path(self.tmp_path, "ci_skipped.txt").exists())
+        ci_result_dct: dict[str, Any] = json.loads(Path(self.tmp_path, "ci_result.json").read_text())
+        if ("pr_number" not in ci_result_dct) or ("action" not in ci_result_dct):
+            logger.error("The ci_result.json file is missing the 'pr_number' or 'ci_skipped' key!")
+            sys.exit(255)
+        return ci_result_dct
 
     def run(self: Self) -> None:
         logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
@@ -177,16 +179,17 @@ class PrHelper:
             # Check if the artifact directory is empty, this might happen when the parent workflow did not execute any checks
             if not any(self.tmp_path.iterdir()):
                 logger.warning(
-                    "Result folder {} for run_id {} is empty! This may be due to a missing artifact or a skipped workflow run!",
+                    "Result folder {} for run_id {} is empty! This may be due to a missing artifact!",
                     self.artifact_name,
                     self.workflow_run_id,
                 )
                 return
 
-            pr_number: int = self._get_pr_number()
-            parent_workflow_skipped: bool = self._check_if_parent_workflow_skipped()
-            logger.info("Post Processing PR #{}", pr_number)
-            if pr_number > 0 and not parent_workflow_skipped:
+            ci_result: dict[str, Any] = self._get_ci_result()
+            pr_number: int = int(ci_result.get("pr_number", 0))
+            pr_action: str = ci_result.get("action", "skip")
+            logger.info("Post Processing PR #{}, action: {}", pr_number, pr_action)
+            if pr_number > 0 and pr_action == "post_process":
                 labels_to_set: set[str] = self._parse_artifact_and_get_labels()
                 labels_on_pr: list[str] = GithubActionHelper.get_labels_on_pull_request(
                     repo=self.github_repository,
@@ -207,8 +210,8 @@ class PrHelper:
                     pull_request_number=pr_number,
                     comment_body=pr_comment,
                 )
-            else:
-                logger.info("Workflow {} for PR #{} was skipped. Dismissing all labels!", self.workflow_run_id, pr_number)
+            elif pr_number > 0 and pr_action == "dismiss_labels":
+                logger.info("PR #{} has new commits. Dismissing all CI labels!", pr_number)
                 GithubActionHelper.set_labels_on_pull_request(
                     repo=self.github_repository,
                     pull_request_number=pr_number,
@@ -221,6 +224,8 @@ class PrHelper:
                         if label not in ALL_CI_LABELS
                     ],
                 )
+            else:
+                logger.info("Skipping post processing of PR #{}!", self.workflow_run_id, pr_number)
 
 
 def main() -> None:

@@ -9,9 +9,10 @@ CI_PASSED_LABEL: str = "CI: Passed"
 CI_FAILURE_LABEL: str = "CI: Issues identified"
 CI_ERROR_LABEL: str = "Warning: CI Error"
 READY_FOR_CI_LABEL: str = "Ready for CI"
+READY_TO_MERGE_LABEL: str = "Ready to merge"
 PR_COMMENT_TAG: str = "<!-- voron_docker_toolkit -->"
 PR_COMMENT_TOOLKIT_VERSION: str = f"<!-- Toolkit version {os.environ.get('VORON_TOOLKIT_VERSION', '<unknown>')} -->"
-ALL_CI_LABELS: list[str] = [CI_PASSED_LABEL, CI_FAILURE_LABEL, CI_ERROR_LABEL, READY_FOR_CI_LABEL]
+ALL_CI_LABELS: list[str] = [CI_PASSED_LABEL, CI_FAILURE_LABEL, CI_ERROR_LABEL, READY_FOR_CI_LABEL, READY_TO_MERGE_LABEL]
 
 
 class ExtendedResult(NamedTuple):
