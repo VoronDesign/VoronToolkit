@@ -170,19 +170,15 @@ class GithubActionHelper:
         response: Response = github.rest.issues.list_comments(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number)
 
         existing_comments: list[dict[str, str]] = response.json()
-        comment_id: int = -1
 
-        # Find the comment by the author
+        # Find the comment with our preset tag
         for existing_comment in existing_comments:
             if PR_COMMENT_TAG in existing_comment["body"]:
-                comment_id = int(existing_comment["id"])
+                comment_id: int = int(existing_comment["id"])
+                github.rest.issues.delete_comment(owner=repo.split("/")[0], repo=repo.split("/")[1], comment_id=comment_id)
                 break
 
         full_comment = f"{comment_body}\n\n{PR_COMMENT_TAG}\n\n{PR_COMMENT_TOOLKIT_VERSION}"
 
-        if comment_id == -1:
-            # Create a new comment
-            github.rest.issues.create_comment(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number, body=full_comment)
-        else:
-            # Update existing comment
-            github.rest.issues.update_comment(owner=repo.split("/")[0], repo=repo.split("/")[1], comment_id=comment_id, body=full_comment)
+        # Create a new comment
+        github.rest.issues.create_comment(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number, body=full_comment)
