@@ -47,6 +47,8 @@ class SparseCheckoutHelper:
                 continue
             pattern: str = Path(self.mod_subfolder, *file_path_relative.parts[:2], "**", "*").as_posix().replace("[", "\\[").replace("]", "\\]")
             sparse_checkout_patterns.add(pattern)
+
+        for pattern in sparse_checkout_patterns:
             logger.success("Added pattern '{}' to sparse_checkout_patterns", pattern)
 
         self.gh_helper.set_output_multiline(output={"SPARSE_CHECKOUT_HELPER_OUTPUT": list(sparse_checkout_patterns)})
