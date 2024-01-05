@@ -2,17 +2,31 @@ import json
 import os
 from collections import defaultdict
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any, NamedTuple, Self
 
-CI_PASSED_LABEL: str = "CI: Passed"
-CI_FAILURE_LABEL: str = "CI: Issues identified"
-CI_ERROR_LABEL: str = "Warning: CI Error"
-READY_FOR_CI_LABEL: str = "Ready for CI"
-READY_TO_MERGE_LABEL: str = "Ready to merge"
+LABEL_CI_PASSED: str = "CI: Passed"
+LABEL_CI_ISSUES_FOUND: str = "CI: Issues identified"
+LABEL_CI_ERROR: str = "Warning: CI Error"
+LABEL_READY_FOR_CI: str = "Ready for CI"
+LABEL_READY_TO_MERGE: str = "Ready to merge"
 PR_COMMENT_TAG: str = "<!-- voron_docker_toolkit -->"
 PR_COMMENT_TOOLKIT_VERSION: str = f"<!-- Toolkit version {os.environ.get('VORON_TOOLKIT_VERSION', '<unknown>')} -->"
-ALL_CI_LABELS: list[str] = [CI_PASSED_LABEL, CI_FAILURE_LABEL, CI_ERROR_LABEL, READY_FOR_CI_LABEL, READY_TO_MERGE_LABEL]
+LABELS_CI_ALL: list[str] = [LABEL_CI_PASSED, LABEL_CI_ISSUES_FOUND, LABEL_CI_ERROR, LABEL_READY_FOR_CI, LABEL_READY_TO_MERGE]
+
+
+class PrAction(StrEnum):
+    opened = "opened"
+    edited = "edited"
+    closed = "closed"
+    reopened = "reopened"
+    assigned = "assigned"
+    unassigned = "unassigned"
+    review_requested = "review_requested"
+    review_request_removed = "review_request_removed"
+    labeled = "labeled"
+    unlabeled = "unlabeled"
+    synchronize = "synchronize"
 
 
 class ExtendedResult(NamedTuple):

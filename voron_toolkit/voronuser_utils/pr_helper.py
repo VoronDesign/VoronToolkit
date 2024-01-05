@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 import tempfile
 from collections import defaultdict
 from pathlib import Path
@@ -10,13 +9,15 @@ import configargparse
 from loguru import logger
 
 from voron_toolkit.constants import (
-    ALL_CI_LABELS,
-    CI_ERROR_LABEL,
-    CI_FAILURE_LABEL,
-    CI_PASSED_LABEL,
+    LABEL_CI_ERROR,
+    LABEL_CI_ISSUES_FOUND,
+    LABEL_CI_PASSED,
+    LABEL_READY_FOR_CI,
+    LABELS_CI_ALL,
     VORONUSERS_PR_COMMENT_SECTIONS,
     ExtendedResultEnum,
     ItemResult,
+    PrAction,
     ToolIdentifierEnum,
     ToolResult,
     ToolSummaryTable,
@@ -37,8 +38,6 @@ I am a 🤖, this comment was generated automatically!
 
 *Made with ❤️ by the VoronDesign GitHub Team*
 """
-
-ALL_LABELS = [CI_ERROR_LABEL, CI_FAILURE_LABEL, CI_PASSED_LABEL]
 
 
 class PrHelper:
@@ -134,12 +133,12 @@ class PrHelper:
                     Path(self.tmp_path, pr_step_identifier.tool_id).exists(),
                     Path(self.tmp_path, pr_step_identifier.tool_id, "tool_result.json").exists(),
                 )
-                labels.add(CI_ERROR_LABEL)
+                labels.add(LABEL_CI_ERROR)
                 continue
             ci_step_result = ToolResult.from_json(Path(self.tmp_path, pr_step_identifier.tool_id, "tool_result.json").read_text())
             result_ok = ExtendedResultEnum.WARNING if ci_step_result.tool_ignore_warnings else ExtendedResultEnum.SUCCESS
             if ci_step_result.extended_result > result_ok:
-                labels.add(CI_FAILURE_LABEL)
+                labels.add(LABEL_CI_ISSUES_FOUND)
             logger.success(
                 "Parsed result for tool {}: Result: {}, Ignore Warnings: {}",
                 pr_step_identifier,
@@ -149,19 +148,47 @@ class PrHelper:
             self.tool_results[pr_step_identifier] = ci_step_result
         if not labels:
             logger.success("All CI checks executed without errors!")
-            labels.add(CI_PASSED_LABEL)
+            labels.add(LABEL_CI_PASSED)
         logger.info("Labels: {}", labels)
         return labels
 
-    def _get_ci_result(self: Self) -> dict[str, Any]:
-        if not Path(self.tmp_path, "ci_result.json").exists():
-            logger.error("Artifact is missing ci_result.json file!")
-            sys.exit(255)
-        ci_result_dct: dict[str, Any] = json.loads(Path(self.tmp_path, "ci_result.json").read_text())
-        if ("pr_number" not in ci_result_dct) or ("action" not in ci_result_dct):
-            logger.error("The ci_result.json file is missing the 'pr_number' or 'ci_skipped' key!")
-            sys.exit(255)
-        return ci_result_dct
+    def _post_process_pr(self: Self, pr_number: int, pr_action: str) -> None:
+        logger.info("Post Processing PR #{}, action: {}", pr_number, pr_action)
+        labels_to_set: set[str] = self._parse_artifact_and_get_labels()
+        labels_on_pr: list[str] = GithubActionHelper.get_labels_on_pull_request(
+            repo=self.github_repository,
+            pull_request_number=pr_number,
+        )
+        labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in LABELS_CI_ALL]
+
+        updated_labels: list[str] = [*labels_to_set, *labels_to_preserve]
+
+        GithubActionHelper.set_labels_on_pull_request(
+            repo=self.github_repository,
+            pull_request_number=pr_number,
+            labels=updated_labels,
+        )
+        pr_comment: str = self._generate_pr_comment()
+        GithubActionHelper.update_or_create_pr_comment(
+            repo=self.github_repository,
+            pull_request_number=pr_number,
+            comment_body=pr_comment,
+        )
+
+    def _dismiss_labels(self: Self, pr_number: int) -> None:
+        logger.info("PR #{} has new changes. Dismissing all CI labels!", pr_number)
+        GithubActionHelper.set_labels_on_pull_request(
+            repo=self.github_repository,
+            pull_request_number=pr_number,
+            labels=[
+                label
+                for label in GithubActionHelper.get_labels_on_pull_request(
+                    repo=self.github_repository,
+                    pull_request_number=pr_number,
+                )
+                if label not in LABELS_CI_ALL
+            ],
+        )
 
     def run(self: Self) -> None:
         logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
@@ -185,45 +212,19 @@ class PrHelper:
                 )
                 return
 
-            ci_result: dict[str, Any] = self._get_ci_result()
-            pr_number: int = int(ci_result.get("pr_number", 0))
-            pr_action: str = ci_result.get("action", "skip")
-            logger.info("Post Processing PR #{}, action: {}", pr_number, pr_action)
-            if pr_number > 0 and pr_action == "post_process":
-                labels_to_set: set[str] = self._parse_artifact_and_get_labels()
-                labels_on_pr: list[str] = GithubActionHelper.get_labels_on_pull_request(
-                    repo=self.github_repository,
-                    pull_request_number=pr_number,
-                )
-                labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in ALL_CI_LABELS]
+            try:
+                event_payload: dict[str, Any] = json.loads(Path(self.tmp_path, "event.json").read_text())
+                pr_number: int = int(event_payload["pull_request"]["number"])
+                pr_action: str = event_payload["action"]
+                pr_labels: list[str] = [label["name"] for label in event_payload["pull_request"]["labels"]]
+            except (FileNotFoundError, KeyError) as e:
+                logger.error("Failed to parse event.json: {}", e)
+                return
 
-                updated_labels: list[str] = [*labels_to_set, *labels_to_preserve]
-
-                GithubActionHelper.set_labels_on_pull_request(
-                    repo=self.github_repository,
-                    pull_request_number=pr_number,
-                    labels=updated_labels,
-                )
-                pr_comment: str = self._generate_pr_comment()
-                GithubActionHelper.update_or_create_pr_comment(
-                    repo=self.github_repository,
-                    pull_request_number=pr_number,
-                    comment_body=pr_comment,
-                )
-            elif pr_number > 0 and pr_action == "dismiss_labels":
-                logger.info("PR #{} has new commits. Dismissing all CI labels!", pr_number)
-                GithubActionHelper.set_labels_on_pull_request(
-                    repo=self.github_repository,
-                    pull_request_number=pr_number,
-                    labels=[
-                        label
-                        for label in GithubActionHelper.get_labels_on_pull_request(
-                            repo=self.github_repository,
-                            pull_request_number=pr_number,
-                        )
-                        if label not in ALL_CI_LABELS
-                    ],
-                )
+            if LABEL_READY_FOR_CI in pr_labels and pr_action == PrAction.labeled:
+                self._post_process_pr(pr_number=pr_number, pr_action=pr_action)
+            elif pr_action != PrAction.labeled:
+                self._dismiss_labels(pr_number=pr_number)
             else:
                 logger.info("Skipping post processing of PR #{}!", self.workflow_run_id, pr_number)
 
