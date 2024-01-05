@@ -22,24 +22,22 @@ jobs:
       # Upload Artifact
       - name: Upload build artifacts 📦
         uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
-        if: '!cancelled()'
         with:
           name: ci_output
           path: ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
     voron_ci:
       if: ${{ github.event.action == 'labeled' && contains( github.event.pull_request.labels.*.name, 'Ready for CI')}}
       runs-on: ubuntu-latest
+      continue-on-error: true
       steps:
       - id: changed-files
-        if: ${{ !cancelled() }}
+      # Check out files, separate with newlines to catch whitespace in filenames
         name: Get changed files 🔀
-        # Check out files, separate with newlines to catch whitespace in filenames
         uses: tj-actions/changed-files@v37
         with:
           separator: "\n"
-      # Sanitize the file list
       - name: Prepare Sparse Checkout 🧹
-        if: ${{ !cancelled() }}
+      # Prepare patterns for sparse checkout
         id: sanitize_file_list
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
@@ -48,8 +46,7 @@ jobs:
         with:
           args: prepare-sparse-checkout
       - name: Perform sparse checkout ↪️
-        if: ${{ !cancelled() }}
-          # Perform a sparse checkout, checking out only the files of the PR
+      # Perform a sparse checkout, checking out only the files of the PR
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         with:
           ref: ${{ github.ref }}
@@ -57,13 +54,13 @@ jobs:
           sparse-checkout: ${{ steps.sanitize_file_list.outputs.SPARSE_CHECKOUT_HELPER_OUTPUT }}
           sparse-checkout-cone-mode: false
       - name: Save Github Event Payload💾
+      # Save the event payload (do this after the sparse checkout to avoid the file being cleaned)
         id: save-payload
         run: |
           mkdir -p ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
           echo -n "$GITHUB_EVENT_CONTEXT" >> ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/event.json
-      # Run whitespace/licenses/file sizes based on files in the test directory
       - name: Check files for whitespace/licenses/file sizes 🔍
-        if: ${{ !cancelled() }}
+      # Run whitespace/licenses/file sizes check based on files in the test directory
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           FILE_CHECKER_IGNORE_WARNINGS: true
@@ -72,23 +69,21 @@ jobs:
         with:
           args: check-files
       - name: Check correct mod/file structure 🔍
-        if: ${{ !cancelled() }}
+      # Check the mod structure
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           MOD_STRUCTURE_CHECKER_IGNORE_WARNINGS: false
         with:
           args: check-mod-structure
-      # Run the corruption checker
       - name: Check for STL corruption 🔍
-        if: ${{ !cancelled() }}
+      # Run the corruption checker
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           CORRUPTION_CHECKER_IGNORE_WARNINGS: true
         with:
           args: check-stl-corruption
-      # Run the rotation checker
       - name: Check for incorrect STL rotation 🔍
-        if: ${{ !cancelled() }}
+      # Run the rotation checker
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           ROTATION_CHECKER_IGNORE_WARNINGS: true
@@ -96,19 +91,17 @@ jobs:
           ROTATION_CHECKER_IMAGEKIT_SUBFOLDER: ci_${{github.event.number}}
         with:
           args: check-stl-rotation
-      # Generate a README
       - name: Generate README 📒
-        if: ${{ !cancelled() }}
+      # Generate a README
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           README_GENERATOR_MARKDOWN: false
           README_GENERATOR_JSON: false
         with:
           args: generate-readme
-      # Upload Artifact
       - name: Upload build artifacts 📦
+      # Upload Artifact
         uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
-        if: '!cancelled()'
         with:
           name: ci_output
           path: ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
