@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
 env:
-  VORON_TOOLKIT_OUTPUT_DIR: /workflow_output
+  VORON_TOOLKIT_OUTPUT_DIR: ${{ github.workspace }}/workflow_output
   VORON_TOOLKIT_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
   VORON_TOOLKIT_GH_STEP_SUMMARY: true
   VORON_TOOLKIT_VERBOSE: true
@@ -48,12 +48,6 @@ jobs:
       if: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && contains( github.event.pull_request.labels.*.name, 'Ready for CI')}}
       runs-on: ubuntu-latest
       steps:
-      - name: Save PR number 💾
-        id: run-ci
-        run: |
-          mkdir -p ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
-          echo -n '{"pr_number": ${{ github.event.number }}, "action": "post_process"}' > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/ci_result.json
-          echo -n ${{ github.event }} > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/event.json
       - id: changed-files
         if: ${{ !cancelled() }}
         name: Get changed files 🔀
@@ -79,6 +73,12 @@ jobs:
           path: ${{ github.workspace }}
           sparse-checkout: ${{ steps.sanitize_file_list.outputs.SPARSE_CHECKOUT_HELPER_OUTPUT }}
           sparse-checkout-cone-mode: false
+      - name: Save PR number 💾
+        id: run-ci
+        run: |
+          mkdir -p ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
+          echo -n '{"pr_number": ${{ github.event.number }}, "action": "post_process"}' > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/ci_result.json
+          echo -n ${{ github.event }} > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/event.json
       # Run whitespace/licenses/file sizes based on files in the test directory
       - name: Check files for whitespace/licenses/file sizes 🔍
         if: ${{ !cancelled() }}
