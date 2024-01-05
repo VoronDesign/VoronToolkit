@@ -44,6 +44,7 @@ jobs:
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           SPARSE_CHECKOUT_HELPER_INPUT: ${{ steps.changed-files.outputs.all_changed_files }}
+          SPARSE_CHECKOUT_HELPER_MOD_SUBFOLDER: tests/test_repository_root/printer_mods
         with:
           args: prepare-sparse-checkout
       - name: Perform sparse checkout ↪️

@@ -16,7 +16,7 @@ MOD_MINIMUM_PARTS = 3
 
 class SparseCheckoutHelper:
     def __init__(self: Self, args: configargparse.Namespace) -> None:
-        self.input_dir: Path = Path(Path.cwd(), args.input_dir)
+        self.mod_subfolder: Path = Path(args.mod_subfolder)
         self.input_file_list: str = args.input_file_list
         self.gh_helper: GithubActionHelper = GithubActionHelper()
 
@@ -37,15 +37,15 @@ class SparseCheckoutHelper:
         for pr_file in file_list:
             file_path = Path(pr_file)
             try:
-                file_path_relative: Path = file_path.relative_to(self.input_dir.relative_to(Path.cwd()))
+                file_path_relative: Path = file_path.relative_to(self.mod_subfolder)
             except ValueError:
-                logger.warning("File '{}' is not relative to input directory '{}'. Skipping.", file_path, self.input_dir)
+                logger.warning("File '{}' is not relative to mod subdirectory directory '{}'. Skipping.", file_path, self.mod_subfolder)
                 continue
-            # The expected layout is self.input_dir/<author>/<mod_name>/.. so if the file path has less than 3 parts, it's not in the expected layout
+            # The expected layout is self.mod_subfolder/<author>/<mod_name>/.. so if the file path has less than 3 parts, it's too far up in the hierarchy
             if len(file_path_relative.parts) < MOD_MINIMUM_PARTS:
                 logger.warning("Folder depth of file '{}' is too shallow. Skipping.", file_path_relative)
                 continue
-            pattern: str = Path(*file_path_relative.parts[:2], "**", "*").as_posix().replace("[", "\\[").replace("]", "\\]")
+            pattern: str = Path(self.mod_subfolder, *file_path_relative.parts[:2], "**", "*").as_posix().replace("[", "\\[").replace("]", "\\]")
             sparse_checkout_patterns.add(pattern)
             logger.success("Added pattern '{}' to sparse_checkout_patterns", pattern)
 
@@ -62,12 +62,12 @@ files and folders that can be used as input for a sparse checkout action.
     )
     parser.add_argument(
         "-i",
-        "--input_dir",
+        "--mod_subfolder",
         required=True,
         action="store",
         type=str,
-        env_var="VORON_TOOLKIT_INPUT_DIR",
-        help="Directory where mods are stored (and where most file changes should be made)",
+        env_var=f"{ENV_VAR_PREFIX}_MOD_SUBFOLDER",
+        help="Relative directory where mods are stored (and where most file changes should be made)",
     )
     parser.add_argument(
         "-e",
