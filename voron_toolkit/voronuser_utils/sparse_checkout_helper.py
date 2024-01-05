@@ -39,7 +39,7 @@ class SparseCheckoutHelper:
             try:
                 file_path_relative: Path = file_path.relative_to(self.mod_subfolder)
             except ValueError:
-                logger.warning("File '{}' is not relative to mod subdirectory directory '{}'. Skipping.", file_path, self.input_dir)
+                logger.warning("File '{}' is not relative to mod subdirectory directory '{}'. Skipping.", file_path, self.mod_subfolder)
                 continue
             # The expected layout is self.mod_subfolder/<author>/<mod_name>/.. so if the file path has less than 3 parts, it's too far up in the hierarchy
             if len(file_path_relative.parts) < MOD_MINIMUM_PARTS:
