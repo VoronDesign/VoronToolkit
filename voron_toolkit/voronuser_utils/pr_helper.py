@@ -156,7 +156,7 @@ class PrHelper:
             logger.error("Artifact is missing ci_result.json file!")
             sys.exit(255)
         ci_result_dct: dict[str, Any] = json.loads(Path(self.tmp_path, "ci_result.json").read_text())
-        if ("pr_number" not in ci_result_dct) or ("ci_skipped" not in ci_result_dct):
+        if ("pr_number" not in ci_result_dct) or ("action" not in ci_result_dct):
             logger.error("The ci_result.json file is missing the 'pr_number' or 'ci_skipped' key!")
             sys.exit(255)
         return ci_result_dct
@@ -177,17 +177,17 @@ class PrHelper:
             # Check if the artifact directory is empty, this might happen when the parent workflow did not execute any checks
             if not any(self.tmp_path.iterdir()):
                 logger.warning(
-                    "Result folder {} for run_id {} is empty! This may be due to a missing artifact or a skipped workflow run!",
+                    "Result folder {} for run_id {} is empty! This may be due to a missing artifact!",
                     self.artifact_name,
                     self.workflow_run_id,
                 )
                 return
 
             ci_result: dict[str, Any] = self._get_ci_result()
-            pr_number: int = int(ci_result["pr_number"])
-            ci_skipped: bool = bool(ci_result["ci_skipped"])
-            logger.info("Post Processing PR #{}", pr_number)
-            if pr_number > 0 and not ci_skipped:
+            pr_number: int = int(ci_result.get("pr_number", 0))
+            pr_action: str = ci_result.get("action", "skip")
+            logger.info("Post Processing PR #{}, action: {}", pr_number, pr_action)
+            if pr_number > 0 and pr_action == "post_process":
                 labels_to_set: set[str] = self._parse_artifact_and_get_labels()
                 labels_on_pr: list[str] = GithubActionHelper.get_labels_on_pull_request(
                     repo=self.github_repository,
@@ -208,8 +208,8 @@ class PrHelper:
                     pull_request_number=pr_number,
                     comment_body=pr_comment,
                 )
-            else:
-                logger.info("Workflow {} for PR #{} was skipped. Dismissing all labels!", self.workflow_run_id, pr_number)
+            elif pr_number > 0 and pr_action == "dismiss_labels":
+                logger.info("PR #{} has new commits. Dismissing all CI labels!", pr_number)
                 GithubActionHelper.set_labels_on_pull_request(
                     repo=self.github_repository,
                     pull_request_number=pr_number,
@@ -222,6 +222,8 @@ class PrHelper:
                         if label not in ALL_CI_LABELS
                     ],
                 )
+            else:
+                logger.info("Skipping post processing of PR #{}!", self.workflow_run_id, pr_number)
 
 
 def main() -> None:

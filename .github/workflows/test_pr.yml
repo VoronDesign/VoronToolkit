@@ -3,29 +3,59 @@ run-name: "#${{github.event.number}} - ${{github.event.pull_request.title}}"
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
+env:
+  VORON_TOOLKIT_OUTPUT_DIR: /workflow_output
+  VORON_TOOLKIT_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
+  VORON_TOOLKIT_GH_STEP_SUMMARY: true
+  VORON_TOOLKIT_VERBOSE: true
 jobs:
-    voron_ci:
-      env:
-        VORON_TOOLKIT_OUTPUT_DIR: /workflow_output
-        VORON_TOOLKIT_INPUT_DIR: ${{ github.workspace }}/tests/test_repository_root/printer_mods
-        VORON_TOOLKIT_GH_STEP_SUMMARY: true
-        VORON_TOOLKIT_VERBOSE: true
+    voron_ci_dismiss_labels:
+      # If the PR was opened, reopened or new commits were pushed, dismiss all labels during post processing
+      if: ${{ github.event_name == 'pull_request' && github.event.action != 'labeled' }}
       runs-on: ubuntu-latest
       steps:
-      - name: Ready for CI label detected ✅
-        if: ${{ contains( github.event.pull_request.labels.*.name, 'Ready for CI') }}
-        id: label-detected
+      - name: Dismiss all CI labels 🚮
+        id: dismiss-labels
         run: |
           mkdir -p ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
-          echo -n '{"pr_number": ${{ github.event.number }}, "skipped": false}' > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/ci_result.json
-      - name: Ready for CI label not detected ❌
-        if: ${{ !contains( github.event.pull_request.labels.*.name, 'Ready for CI') }}
-        id: label-not-detected
+          echo -n '{"pr_number": ${{ github.event.number }}, "action": "dismiss_labels"}' > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/ci_result.json
+          echo -n ${{ github.event }} > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/event.json
+      # Upload Artifact
+      - name: Upload build artifacts 📦
+        uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
+        with:
+          name: ci_output
+          path: ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
+    voron_ci_skip:
+      # The PR was labeled with any label OTHER than "Ready for CI", which means we should skip the CI run and the post processing
+      if: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && !contains( github.event.pull_request.labels.*.name, 'Ready for CI')}}
+      runs-on: ubuntu-latest
+      steps:
+      - name: Skip CI ⏩
+        id: skip-ci
         run: |
           mkdir -p ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
-          echo -n '{"pr_number": ${{ github.event.number }}, "skipped": true}' > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/ci_result.json
+          echo -n '{"pr_number": ${{ github.event.number }}, "action": "skip"}' > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/ci_result.json
+          echo -n ${{ github.event }} > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/event.json
+      # Upload Artifact
+      - name: Upload build artifacts 📦
+        uses: actions/upload-artifact@65d862660abb392b8c4a3d1195a2108db131dd05
+        with:
+          name: ci_output
+          path: ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
+    voron_ci:
+      # The PR was labeled with the "Ready for CI label", which menas we should run the CI and post processing
+      if: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && contains( github.event.pull_request.labels.*.name, 'Ready for CI')}}
+      runs-on: ubuntu-latest
+      steps:
+      - name: Save PR number 💾
+        id: run-ci
+        run: |
+          mkdir -p ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
+          echo -n '{"pr_number": ${{ github.event.number }}, "action": "post_process"}' > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/ci_result.json
+          echo -n ${{ github.event }} > ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}/event.json
       - id: changed-files
-        if: ${{ !cancelled() && steps.label-detected.outcome == 'success' }}
+        if: ${{ !cancelled() }}
         name: Get changed files 🔀
         # Check out files, separate with newlines to catch whitespace in filenames
         uses: tj-actions/changed-files@v37
@@ -33,7 +63,7 @@ jobs:
           separator: "\n"
       # Sanitize the file list
       - name: Prepare Sparse Checkout 🧹
-        if: ${{ !cancelled() && steps.label-detected.outcome == 'success' }}
+        if: ${{ !cancelled() }}
         id: sanitize_file_list
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
@@ -41,7 +71,7 @@ jobs:
         with:
           args: prepare-sparse-checkout
       - name: Perform sparse checkout ↪️
-        if: ${{ !cancelled() && steps.label-detected.outcome == 'success' }}
+        if: ${{ !cancelled() }}
           # Perform a sparse checkout, checking out only the files of the PR
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         with:
@@ -51,7 +81,7 @@ jobs:
           sparse-checkout-cone-mode: false
       # Run whitespace/licenses/file sizes based on files in the test directory
       - name: Check files for whitespace/licenses/file sizes 🔍
-        if: ${{ !cancelled() && steps.label-detected.outcome == 'success' }}
+        if: ${{ !cancelled() }}
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           FILE_CHECKER_IGNORE_WARNINGS: true
@@ -60,7 +90,7 @@ jobs:
         with:
           args: check-files
       - name: Check correct mod/file structure 🔍
-        if: ${{ !cancelled() && steps.label-detected.outcome == 'success' }}
+        if: ${{ !cancelled() }}
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           MOD_STRUCTURE_CHECKER_IGNORE_WARNINGS: false
@@ -68,7 +98,7 @@ jobs:
           args: check-mod-structure
       # Run the corruption checker
       - name: Check for STL corruption 🔍
-        if: ${{ !cancelled() && steps.label-detected.outcome == 'success' }}
+        if: ${{ !cancelled() }}
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           CORRUPTION_CHECKER_IGNORE_WARNINGS: true
@@ -76,7 +106,7 @@ jobs:
           args: check-stl-corruption
       # Run the rotation checker
       - name: Check for incorrect STL rotation 🔍
-        if: ${{ !cancelled() && steps.label-detected.outcome == 'success' }}
+        if: ${{ !cancelled() }}
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           ROTATION_CHECKER_IGNORE_WARNINGS: true
@@ -86,7 +116,7 @@ jobs:
           args: check-stl-rotation
       # Generate a README
       - name: Generate README 📒
-        if: ${{ !cancelled() && steps.label-detected.outcome == 'success' }}
+        if: ${{ !cancelled() }}
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           README_GENERATOR_MARKDOWN: false
