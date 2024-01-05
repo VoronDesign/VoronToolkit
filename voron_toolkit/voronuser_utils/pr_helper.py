@@ -1,9 +1,10 @@
+import json
 import os
 import sys
 import tempfile
 from collections import defaultdict
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 
 import configargparse
 from loguru import logger
@@ -150,14 +151,15 @@ class PrHelper:
         logger.info("Labels: {}", labels)
         return labels
 
-    def _get_pr_number(self: Self) -> int:
-        if not Path(self.tmp_path, "pr_number.txt").exists():
-            logger.error("Artifact is missing pr_number.txt file!")
+    def _get_ci_result(self: Self) -> dict[str, Any]:
+        if not Path(self.tmp_path, "ci_result.json").exists():
+            logger.error("Artifact is missing ci_result.json file!")
             sys.exit(255)
-        return int(Path(self.tmp_path, "pr_number.txt").read_text())
-
-    def _check_if_parent_workflow_skipped(self: Self) -> bool:
-        return bool(Path(self.tmp_path, "ci_skipped.txt").exists())
+        ci_result_dct: dict[str, Any] = json.loads(Path(self.tmp_path, "ci_result.json").read_text())
+        if ("pr_number" not in ci_result_dct) or ("ci_skipped" not in ci_result_dct):
+            logger.error("The ci_result.json file is missing the 'pr_number' or 'ci_skipped' key!")
+            sys.exit(255)
+        return ci_result_dct
 
     def run(self: Self) -> None:
         logger.info("Downloading artifact '{}' from workflow '{}'", self.artifact_name, self.workflow_run_id)
@@ -181,10 +183,11 @@ class PrHelper:
                 )
                 return
 
-            pr_number: int = self._get_pr_number()
-            parent_workflow_skipped: bool = self._check_if_parent_workflow_skipped()
+            ci_result: dict[str, Any] = self._get_ci_result()
+            pr_number: int = int(ci_result["pr_number"])
+            ci_skipped: bool = bool(ci_result["ci_skipped"])
             logger.info("Post Processing PR #{}", pr_number)
-            if pr_number > 0 and not parent_workflow_skipped:
+            if pr_number > 0 and not ci_skipped:
                 labels_to_set: set[str] = self._parse_artifact_and_get_labels()
                 labels_on_pr: list[str] = GithubActionHelper.get_labels_on_pull_request(
                     repo=self.github_repository,
