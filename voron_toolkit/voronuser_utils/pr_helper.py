@@ -226,7 +226,7 @@ class PrHelper:
             elif pr_action != PrAction.labeled:
                 self._dismiss_labels(pr_number=pr_number)
             else:
-                logger.info("Skipping post processing of PR #{}!", self.workflow_run_id, pr_number)
+                logger.info("Skipping post processing of PR #{}!", pr_number)
 
 
 def main() -> None:
