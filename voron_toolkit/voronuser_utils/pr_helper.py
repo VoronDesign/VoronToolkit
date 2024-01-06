@@ -160,19 +160,19 @@ class PrHelper:
             pull_request_number=pr_number,
         )
         labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in LABELS_CI_ALL]
-
         updated_labels: list[str] = [*labels_to_set, *labels_to_preserve]
 
+        pr_comment: str = self._generate_pr_comment()
+        GithubActionHelper.update_or_create_pr_review(
+            repo=self.github_repository,
+            pull_request_number=pr_number,
+            comment_body=pr_comment,
+            request_changes=any(label in updated_labels for label in [LABEL_CI_ISSUES_FOUND, LABEL_CI_ERROR]),
+        )
         GithubActionHelper.set_labels_on_pull_request(
             repo=self.github_repository,
             pull_request_number=pr_number,
             labels=updated_labels,
-        )
-        pr_comment: str = self._generate_pr_comment()
-        GithubActionHelper.update_or_create_pr_comment(
-            repo=self.github_repository,
-            pull_request_number=pr_number,
-            comment_body=pr_comment,
         )
 
     def _dismiss_labels(self: Self, pr_number: int) -> None:
