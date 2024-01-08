@@ -23,11 +23,13 @@ jobs:
           echo "$TEST" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
       # Sanitize the file list
-      - name: Sanitize file list
+      - name: Prepare Sparse Checkout 🧹
+      # Prepare patterns for sparse checkout
         id: sanitize_file_list
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
         env:
           SPARSE_CHECKOUT_HELPER_INPUT: ${{ steps.list_files.outputs.FILE_LIST }}
+          SPARSE_CHECKOUT_HELPER_MOD_SUBFOLDER: tests/test_repository_root/printer_mods
         with:
           args: prepare-sparse-checkout
       # Run file checks based on files in the test directory
