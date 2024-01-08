@@ -6,7 +6,7 @@ images:
  - Images/CAD1.png
  - Images/photo.jpg
 cad:
- - CAD/matchstick diffuser.step
+ - CAD/matchstick_diffuser.step
 stl:
  - STL/[c]_diffuser_x2.stl
  - STL/bottom_mount_clip_x4.stl
