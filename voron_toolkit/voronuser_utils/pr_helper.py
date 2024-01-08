@@ -159,8 +159,8 @@ class PrHelper:
         )
         labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in LABELS_CI_ALL]
 
-        logger.info("Labels: {}", labels_to_preserve)
         updated_labels: list[str] = [label, *labels_to_preserve]
+        logger.info("Labels: {}", updated_labels)
         GithubActionHelper.set_labels_on_pull_request(
             repo=self.github_repository,
             pull_request_number=pr_number,

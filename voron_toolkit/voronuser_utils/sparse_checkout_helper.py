@@ -52,6 +52,7 @@ class SparseCheckoutHelper:
             logger.success("Added pattern '{}' to sparse_checkout_patterns", pattern)
 
         self.gh_helper.set_output_multiline(output={"SPARSE_CHECKOUT_HELPER_OUTPUT": list(sparse_checkout_patterns)})
+        self.gh_helper.write_outputs()
 
 
 def main() -> None:
