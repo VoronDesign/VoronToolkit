@@ -11,7 +11,7 @@ from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from githubkit import GitHub, Response
 from loguru import logger
 
-from voron_toolkit.constants import PR_COMMENT_TAG, PR_COMMENT_TOOLKIT_VERSION, ExtendedResultEnum, ToolResult
+from voron_toolkit.constants import PR_COMMENT_TAG, PR_COMMENT_TOOLKIT_VERSION, ExtendedResultEnum, StatusCheck, ToolResult
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
 OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
@@ -165,6 +165,50 @@ class GithubActionHelper:
         logger.info("Artifact '{}' downloaded and extracted to '{}' successfully.", artifact_name, target_directory.as_posix())
 
     @classmethod
+    def update_or_create_pr_review(cls: type[Self], repo: str, pull_request_number: int, comment_body: str, *, request_changes: bool = False) -> None:
+        logger.info("Updating or creating PR review for PR {} in repo {}", pull_request_number, repo)
+        github: GitHub = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
+        response: Response = github.rest.pulls.list_reviews(owner=repo.split("/")[0], repo=repo.split("/")[1], pull_number=pull_request_number)
+        existing_reviews: list[dict[str, str]] = response.json()
+
+        # Find the review with our preset tag and dismiss it, deleting all associated comments
+        for existing_review in existing_reviews:
+            if PR_COMMENT_TAG in existing_review["body"]:
+                review_id: int = int(existing_review["id"])
+                logger.info("Found existing review id: {}", review_id)
+                # Get all comments associated with the review and delete them
+                response = github.rest.pulls.list_comments_for_review(
+                    owner=repo.split("/")[0], repo=repo.split("/")[1], pull_number=pull_request_number, review_id=review_id
+                )
+                review_comments: list[dict[str, str]] = response.json()
+                for review_comment in review_comments:
+                    comment_id: int = int(review_comment["id"])
+                    logger.info("Deleting review comment id: {} for review id: {}", comment_id, review_id)
+                    github.rest.pulls.delete_review_comment(owner=repo.split("/")[0], repo=repo.split("/")[1], comment_id=comment_id)
+
+                # Dismiss the review
+                logger.info("Dismissing review id: {}", review_id)
+                github.rest.pulls.dismiss_review(
+                    owner=repo.split("/")[0],
+                    repo=repo.split("/")[1],
+                    pull_number=pull_request_number,
+                    review_id=review_id,
+                    message="Dismissing review due to updates!",
+                )
+
+        full_comment = f"{comment_body}\n\n{PR_COMMENT_TAG}\n\n{PR_COMMENT_TOOLKIT_VERSION}"
+
+        logger.info("Creating new review, request_changes: {}", "True" if request_changes else "False")
+        github.rest.pulls.create_review(
+            owner=repo.split("/")[0],
+            repo=repo.split("/")[1],
+            pull_number=pull_request_number,
+            body=full_comment,
+            event="REQUEST_CHANGES" if request_changes else "APPROVE",
+        )
+        logger.success("PR review created successfully.")
+
+    @classmethod
     def update_or_create_pr_comment(cls: type[Self], repo: str, pull_request_number: int, comment_body: str) -> None:
         github: GitHub = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
         response: Response = github.rest.issues.list_comments(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number)
@@ -182,3 +226,10 @@ class GithubActionHelper:
 
         # Create a new comment
         github.rest.issues.create_comment(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number, body=full_comment)
+
+    @classmethod
+    def set_commit_status(cls: type[Self], repo: str, commit_sha: str, status: StatusCheck) -> None:
+        github: GitHub = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
+        github.rest.repos.create_commit_status(
+            owner=repo.split("/")[0], repo=repo.split("/")[1], sha=commit_sha, state=status.status, description=status.description, context=status.context
+        )

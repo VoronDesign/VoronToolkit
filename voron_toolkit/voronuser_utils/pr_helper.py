@@ -9,15 +9,14 @@ import configargparse
 from loguru import logger
 
 from voron_toolkit.constants import (
-    LABEL_CI_ERROR,
     LABEL_CI_ISSUES_FOUND,
     LABEL_CI_PASSED,
     LABEL_READY_FOR_CI,
     LABELS_CI_ALL,
-    VORONUSERS_PR_COMMENT_SECTIONS,
     ExtendedResultEnum,
     ItemResult,
     PrAction,
+    StatusCheck,
     ToolIdentifierEnum,
     ToolResult,
     ToolSummaryTable,
@@ -106,8 +105,8 @@ class PrHelper:
             result_details += "<details>\n"
         result_details += f"<summary>{extended_result.name}: {extended_result.icon}</summary>\n\n"
 
-        for pr_step_identifier in VORONUSERS_PR_COMMENT_SECTIONS:
-            if pr_step_identifier not in self.tool_results or not self.tool_results[pr_step_identifier]:
+        for pr_step_identifier in self.tool_results:
+            if not self.tool_results[pr_step_identifier]:
                 continue
             filtered_markdown_table = self.tool_results[pr_step_identifier].tool_result_items.to_markdown(filter_result=extended_result)
             if not filtered_markdown_table:
@@ -120,25 +119,23 @@ class PrHelper:
         result_details += "\n</details>\n"
         return result_details if extended_result_has_items else ""
 
-    def _parse_artifact_and_get_labels(self: Self) -> set[str]:
-        labels: set[str] = set()
-
+    def _parse_artifact_and_get_labels(self: Self) -> None:
         logger.info("Parsing Artifact ...")
 
-        for pr_step_identifier in [*VORONUSERS_PR_COMMENT_SECTIONS, ToolIdentifierEnum.README_GENERATOR]:
-            if not (Path(self.tmp_path, pr_step_identifier.tool_id, "tool_result.json").exists()):
-                logger.warning(
-                    "Section '{}' is missing or incomplete in artifact! folder: {}, json: {}",
-                    pr_step_identifier,
-                    Path(self.tmp_path, pr_step_identifier.tool_id).exists(),
-                    Path(self.tmp_path, pr_step_identifier.tool_id, "tool_result.json").exists(),
-                )
-                labels.add(LABEL_CI_ERROR)
+        for directory in [item for item in self.tmp_path.iterdir() if item.is_dir()]:
+            try:
+                pr_step_identifier = ToolIdentifierEnum[directory.name.upper()]
+            except ValueError:
+                logger.warning("Skipping unknown directory {}", directory.name)
                 continue
-            ci_step_result = ToolResult.from_json(Path(self.tmp_path, pr_step_identifier.tool_id, "tool_result.json").read_text())
-            result_ok = ExtendedResultEnum.WARNING if ci_step_result.tool_ignore_warnings else ExtendedResultEnum.SUCCESS
-            if ci_step_result.extended_result > result_ok:
-                labels.add(LABEL_CI_ISSUES_FOUND)
+            if not (Path(directory, "tool_result.json").exists()):
+                logger.warning(
+                    "Section '{}' is incomplete in artifact! json: {}",
+                    pr_step_identifier,
+                    Path(directory, "tool_result.json").exists(),
+                )
+                continue
+            ci_step_result = ToolResult.from_json(Path(directory, "tool_result.json").read_text())
             logger.success(
                 "Parsed result for tool {}: Result: {}, Ignore Warnings: {}",
                 pr_step_identifier,
@@ -146,28 +143,31 @@ class PrHelper:
                 ci_step_result.tool_ignore_warnings,
             )
             self.tool_results[pr_step_identifier] = ci_step_result
-        if not labels:
-            logger.success("All CI checks executed without errors!")
-            labels.add(LABEL_CI_PASSED)
-        logger.info("Labels: {}", labels)
-        return labels
 
-    def _post_process_pr(self: Self, pr_number: int, pr_action: str) -> None:
-        logger.info("Post Processing PR #{}, action: {}", pr_number, pr_action)
-        labels_to_set: set[str] = self._parse_artifact_and_get_labels()
+    def _update_labels_on_pull_request(self: Self, pr_number: int) -> None:
+        label: str = LABEL_CI_PASSED
+        for ci_step_result in self.tool_results.values():
+            result_ok = ExtendedResultEnum.WARNING if ci_step_result.tool_ignore_warnings else ExtendedResultEnum.SUCCESS
+            if ci_step_result.extended_result > result_ok:
+                label = LABEL_CI_ISSUES_FOUND
+        if label == LABEL_CI_PASSED:
+            logger.success("All CI checks executed without errors!")
+
         labels_on_pr: list[str] = GithubActionHelper.get_labels_on_pull_request(
             repo=self.github_repository,
             pull_request_number=pr_number,
         )
         labels_to_preserve: list[str] = [label for label in labels_on_pr if label not in LABELS_CI_ALL]
 
-        updated_labels: list[str] = [*labels_to_set, *labels_to_preserve]
-
+        logger.info("Labels: {}", labels_to_preserve)
+        updated_labels: list[str] = [label, *labels_to_preserve]
         GithubActionHelper.set_labels_on_pull_request(
             repo=self.github_repository,
             pull_request_number=pr_number,
             labels=updated_labels,
         )
+
+    def _update_pr_comment(self: Self, pr_number: int) -> None:
         pr_comment: str = self._generate_pr_comment()
         GithubActionHelper.update_or_create_pr_comment(
             repo=self.github_repository,
@@ -175,7 +175,39 @@ class PrHelper:
             comment_body=pr_comment,
         )
 
-    def _dismiss_labels(self: Self, pr_number: int) -> None:
+    def _update_status_checks(self: Self, commit_sha: str) -> None:
+        for ci_step_result in self.tool_results.values():
+            result_ok = ExtendedResultEnum.WARNING if ci_step_result.tool_ignore_warnings else ExtendedResultEnum.SUCCESS
+            if ci_step_result.extended_result > result_ok:
+                GithubActionHelper.set_commit_status(
+                    repo=self.github_repository,
+                    commit_sha=commit_sha,
+                    status=StatusCheck(
+                        status="failure",
+                        description=f"CI found issues in {ci_step_result.tool_name}!",
+                        context=f"VoronCI/{ci_step_result.tool_name}",
+                    ),
+                )
+            else:
+                GithubActionHelper.set_commit_status(
+                    repo=self.github_repository,
+                    commit_sha=commit_sha,
+                    status=StatusCheck(
+                        status="success",
+                        description=f"CI found no issues in {ci_step_result.tool_name}!",
+                        context=f"VoronCI/{ci_step_result.tool_name}",
+                    ),
+                )
+
+    def _post_process_pr(self: Self, pr_number: int, pr_action: str, commit_sha: str) -> None:
+        logger.info("Post Processing PR #{}, action: {}", pr_number, pr_action)
+        self._parse_artifact_and_get_labels()
+
+        self._update_pr_comment(pr_number=pr_number)
+        self._update_labels_on_pull_request(pr_number=pr_number)
+        self._update_status_checks(commit_sha=commit_sha)
+
+    def _dismiss_labels(self: Self, pr_number: int, commit_sha: str) -> None:
         logger.info("PR #{} has new changes. Dismissing all CI labels!", pr_number)
         GithubActionHelper.set_labels_on_pull_request(
             repo=self.github_repository,
@@ -188,6 +220,15 @@ class PrHelper:
                 )
                 if label not in LABELS_CI_ALL
             ],
+        )
+        GithubActionHelper.set_commit_status(
+            repo=self.github_repository,
+            commit_sha=commit_sha,
+            status=StatusCheck(
+                status="pending",
+                description="Please run the Voron PR CI to get the CI results!",
+                context="VoronCI/run",
+            ),
         )
 
     def run(self: Self) -> None:
@@ -217,16 +258,26 @@ class PrHelper:
                 pr_number: int = int(event_payload["pull_request"]["number"])
                 pr_action: str = event_payload["action"]
                 pr_labels: list[str] = [label["name"] for label in event_payload["pull_request"]["labels"]]
+                pr_commit_sha: str = event_payload["pull_request"]["head"]["sha"]
             except (FileNotFoundError, KeyError) as e:
                 logger.error("Failed to parse event.json: {}", e)
                 return
 
             if LABEL_READY_FOR_CI in pr_labels and pr_action == PrAction.labeled:
-                self._post_process_pr(pr_number=pr_number, pr_action=pr_action)
+                self._post_process_pr(pr_number=pr_number, pr_action=pr_action, commit_sha=pr_commit_sha)
             elif pr_action != PrAction.labeled:
-                self._dismiss_labels(pr_number=pr_number)
+                self._dismiss_labels(pr_number=pr_number, commit_sha=pr_commit_sha)
             else:
                 logger.info("Skipping post processing of PR #{}!", pr_number)
+                GithubActionHelper.set_commit_status(
+                    repo=self.github_repository,
+                    commit_sha=pr_commit_sha,
+                    status=StatusCheck(
+                        status="pending",
+                        description="Please run the Voron PR CI to get the CI results!",
+                        context="VoronCI/run",
+                    ),
+                )
 
 
 def main() -> None:

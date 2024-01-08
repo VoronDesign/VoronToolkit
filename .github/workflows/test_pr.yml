@@ -25,9 +25,10 @@ jobs:
         with:
           name: ci_output
           path: ${{ env.VORON_TOOLKIT_OUTPUT_DIR }}
-    voron_ci:
+    voron_ci_run:
       if: ${{ github.event.action == 'labeled' && contains( github.event.pull_request.labels.*.name, 'Ready for CI')}}
       runs-on: ubuntu-latest
+      continue-on-error: true
       steps:
       - id: changed-files
       # Check out files, separate with newlines to catch whitespace in filenames
