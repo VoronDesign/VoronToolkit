@@ -51,6 +51,13 @@
                 "type": "string"
             }
         },
+        "stl": {
+            "type": "array",
+            "description": "STL files included with the mod",
+            "items": {
+                "type": "string"
+            }
+        },
         "discord_username": {
             "description": "Discord username",
             "type": "string"
@@ -65,6 +72,7 @@
         "description",
         "printer_compatibility",
         "mod_version",
-        "cad"
+        "cad",
+        "stl"
     ]
 }

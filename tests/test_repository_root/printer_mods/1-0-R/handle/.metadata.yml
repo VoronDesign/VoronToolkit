@@ -14,6 +14,10 @@ images:
 - images/handle_middle_part.jpg
 - images/handle_outer_part.jpg
 - images/inner_part_with_heat_set_inserts.jpg
+stl:
+- STL/[a]_handle_middle_part.stl
+- STL/handle_inner_part.stl
+- STL/handle_outer_part.stl
 mod_version: 1
 printer_compatibility:
 - V2.4
