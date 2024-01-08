@@ -14,7 +14,6 @@ from voron_toolkit.constants import (
     LABEL_CI_PASSED,
     LABEL_READY_FOR_CI,
     LABELS_CI_ALL,
-    VORONUSERS_PR_COMMENT_SECTIONS,
     ExtendedResultEnum,
     ItemResult,
     PrAction,
@@ -106,8 +105,8 @@ class PrHelper:
             result_details += "<details>\n"
         result_details += f"<summary>{extended_result.name}: {extended_result.icon}</summary>\n\n"
 
-        for pr_step_identifier in VORONUSERS_PR_COMMENT_SECTIONS:
-            if pr_step_identifier not in self.tool_results or not self.tool_results[pr_step_identifier]:
+        for pr_step_identifier in self.tool_results:
+            if not self.tool_results[pr_step_identifier]:
                 continue
             filtered_markdown_table = self.tool_results[pr_step_identifier].tool_result_items.to_markdown(filter_result=extended_result)
             if not filtered_markdown_table:
@@ -125,17 +124,21 @@ class PrHelper:
 
         logger.info("Parsing Artifact ...")
 
-        for pr_step_identifier in [*VORONUSERS_PR_COMMENT_SECTIONS, ToolIdentifierEnum.README_GENERATOR]:
-            if not (Path(self.tmp_path, pr_step_identifier.tool_id, "tool_result.json").exists()):
+        for directory in [item for item in self.tmp_path.iterdir() if item.is_dir()]:
+            try:
+                pr_step_identifier = ToolIdentifierEnum[directory.name.upper()]
+            except ValueError:
+                logger.warning("Skipping unknown directory {}", directory.name)
+                continue
+            if not (Path(directory, "tool_result.json").exists()):
                 logger.warning(
-                    "Section '{}' is missing or incomplete in artifact! folder: {}, json: {}",
+                    "Section '{}' is incomplete in artifact! json: {}",
                     pr_step_identifier,
-                    Path(self.tmp_path, pr_step_identifier.tool_id).exists(),
-                    Path(self.tmp_path, pr_step_identifier.tool_id, "tool_result.json").exists(),
+                    Path(directory, "tool_result.json").exists(),
                 )
                 labels.add(LABEL_CI_ERROR)
                 continue
-            ci_step_result = ToolResult.from_json(Path(self.tmp_path, pr_step_identifier.tool_id, "tool_result.json").read_text())
+            ci_step_result = ToolResult.from_json(Path(directory, "tool_result.json").read_text())
             result_ok = ExtendedResultEnum.WARNING if ci_step_result.tool_ignore_warnings else ExtendedResultEnum.SUCCESS
             if ci_step_result.extended_result > result_ok:
                 labels.add(LABEL_CI_ISSUES_FOUND)

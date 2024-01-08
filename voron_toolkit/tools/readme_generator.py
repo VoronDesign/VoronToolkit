@@ -104,7 +104,7 @@ class ReadmeGenerator:
                     "title": metadata["title"],
                     "creator": yml_file.relative_to(self.input_dir).parts[0],
                     "description": metadata["description"],
-                    "printer_compatibility": f'{", ".join(sorted(metadata["printer_compatibility"]))}',
+                    "printer_compatibility": sorted(metadata["printer_compatibility"]),
                     "last_changed": GithubActionHelper.last_commit_timestamp(file_or_directory=yml_file.parent),
                 }
             )
@@ -118,7 +118,7 @@ class ReadmeGenerator:
                     mod["creator"] if mod["creator"] != prev_username else "",
                     f'[{textwrap.shorten(mod["title"], width=35, placeholder="...")}]({mod["path"]})',
                     textwrap.shorten(mod["description"], width=70, placeholder="..."),
-                    mod["printer_compatibility"],
+                    f'{", ".join(mod["printer_compatibility"])}',
                     mod["last_changed"],
                 ]
             )
