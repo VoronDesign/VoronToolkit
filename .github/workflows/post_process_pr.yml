@@ -4,16 +4,16 @@ on:
     workflows: ["VoronCI PR Test CI"]
     types:
     - completed
-
+env:
+  VORON_TOOLKIT_VERBOSE: true
+  VORON_CI_GITHUB_TOKEN: ${{ github.token }}
 jobs:
   create_pr_comment:
     if: ${{ github.event.workflow_run.event == 'pull_request' }}
     permissions:
       pull-requests: write
+      checks: write
     runs-on: ubuntu-latest
-    env:
-      VORON_TOOLKIT_VERBOSE: true
-      VORON_CI_GITHUB_TOKEN: ${{ github.token }}
     steps:
     - name: Create PR comment 💬
       id: create_pr_comment
@@ -24,12 +24,9 @@ jobs:
         PR_HELPER_GITHUB_REPOSITORY: ${{ github.repository }}
       with:
         args: set-pr-comment-labels
-
   upload_imagekit:
     if: ${{ github.event.workflow_run.event == 'pull_request' }}
-    env:
-      VORON_TOOLKIT_VERBOSE: true
-      VORON_CI_GITHUB_TOKEN: ${{ github.token }}
+
     runs-on: ubuntu-latest
     steps:
     - name: Upload images to imagekit 📸
