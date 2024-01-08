@@ -11,7 +11,7 @@ from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from githubkit import GitHub, Response
 from loguru import logger
 
-from voron_toolkit.constants import PR_COMMENT_TAG, PR_COMMENT_TOOLKIT_VERSION, ExtendedResultEnum, ToolResult
+from voron_toolkit.constants import PR_COMMENT_TAG, PR_COMMENT_TOOLKIT_VERSION, ExtendedResultEnum, StatusCheck, ToolResult
 
 STEP_SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY"
 OUTPUT_ENV_VAR = "GITHUB_OUTPUT"
@@ -226,3 +226,10 @@ class GithubActionHelper:
 
         # Create a new comment
         github.rest.issues.create_comment(owner=repo.split("/")[0], repo=repo.split("/")[1], issue_number=pull_request_number, body=full_comment)
+
+    @classmethod
+    def set_commit_status(cls: type[Self], repo: str, commit_sha: str, status: StatusCheck) -> None:
+        github: GitHub = GitHub(os.environ[VORON_CI_GITHUB_TOKEN_ENV_VAR])
+        github.rest.repos.create_commit_status(
+            owner=repo.split("/")[0], repo=repo.split("/")[1], sha=commit_sha, state=status.status, description=status.description, context=status.context
+        )

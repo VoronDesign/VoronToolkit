@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum, StrEnum
-from typing import Any, NamedTuple, Self
+from typing import Any, Literal, NamedTuple, Self
 
 LABEL_CI_PASSED: str = "CI: Passed"
 LABEL_CI_ISSUES_FOUND: str = "CI: Issues identified"
@@ -132,3 +132,9 @@ class ToolIdentifierEnum(ToolIdentifier, Enum):
     README_GENERATOR = ToolIdentifier(tool_id="readme_generator", tool_name="Readme generator")
     ROTATION_CHECK = ToolIdentifier(tool_id="rotation_check", tool_name="STL rotation checker")
     FILE_CHECK = ToolIdentifier(tool_id="file_check", tool_name="File checker")
+
+
+class StatusCheck(NamedTuple):
+    status: Literal["error", "failure", "pending", "success"]
+    description: str
+    context: str
