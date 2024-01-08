@@ -132,11 +132,3 @@ class ToolIdentifierEnum(ToolIdentifier, Enum):
     README_GENERATOR = ToolIdentifier(tool_id="readme_generator", tool_name="Readme generator")
     ROTATION_CHECK = ToolIdentifier(tool_id="rotation_check", tool_name="STL rotation checker")
     FILE_CHECK = ToolIdentifier(tool_id="file_check", tool_name="File checker")
-
-
-VORONUSERS_PR_COMMENT_SECTIONS: list[ToolIdentifierEnum] = [
-    ToolIdentifierEnum.FILE_CHECK,
-    ToolIdentifierEnum.MOD_STRUCTURE_CHECK,
-    ToolIdentifierEnum.CORRUPTION_CHECK,
-    ToolIdentifierEnum.ROTATION_CHECK,
-]
