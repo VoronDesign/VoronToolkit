@@ -7,5 +7,13 @@ images:
  - Images/photo.jpg
 cad:
  - CAD/matchstick diffuser.step
+stl:
+ - tests/test_repository_root/printer_mods/Andre/Matchstick_Diffuser/STL/[c]_diffuser_x2.stl
+ - tests/test_repository_root/printer_mods/Andre/Matchstick_Diffuser/STL/bottom_mount_clip_x4.stl
+ - tests/test_repository_root/printer_mods/Andre/Matchstick_Diffuser/STL/main_body_daylight_A.stl
+ - tests/test_repository_root/printer_mods/Andre/Matchstick_Diffuser/STL/main_body_daylight_B.stl
+ - tests/test_repository_root/printer_mods/Andre/Matchstick_Diffuser/STL/main_body_rainbow_A.stl
+ - tests/test_repository_root/printer_mods/Andre/Matchstick_Diffuser/STL/main_body_rainbow_B.stl
+ - tests/test_repository_root/printer_mods/Andre/Matchstick_Diffuser/STL/top_mount_clip_x4.stl
 discord_username: mapleleafmakers
 mod_version: 1
