@@ -176,16 +176,18 @@ class PrHelper:
         )
 
     def _update_status_checks(self: Self, commit_sha: str) -> None:
+        failed: bool = False
         for ci_step_result in self.tool_results.values():
             result_ok = ExtendedResultEnum.WARNING if ci_step_result.tool_ignore_warnings else ExtendedResultEnum.SUCCESS
             if ci_step_result.extended_result > result_ok:
+                failed = True
                 GithubActionHelper.set_commit_status(
                     repo=self.github_repository,
                     commit_sha=commit_sha,
                     status=StatusCheck(
                         status="failure",
-                        description=f"CI found issues in {ci_step_result.tool_name}!",
-                        context=f"VoronCI/{ci_step_result.tool_name}",
+                        description=f"{ci_step_result.tool_name} found issues!",
+                        context=f"VoronCI/{ci_step_result.tool_id}",
                     ),
                 )
             else:
@@ -194,10 +196,30 @@ class PrHelper:
                     commit_sha=commit_sha,
                     status=StatusCheck(
                         status="success",
-                        description=f"CI found no issues in {ci_step_result.tool_name}!",
-                        context=f"VoronCI/{ci_step_result.tool_name}",
+                        description=f"{ci_step_result.tool_name} found no issues!",
+                        context=f"VoronCI/{ci_step_result.tool_id}",
                     ),
                 )
+        if failed:
+            GithubActionHelper.set_commit_status(
+                repo=self.github_repository,
+                commit_sha=commit_sha,
+                status=StatusCheck(
+                    status="failure",
+                    description="Issues found, please check the PR comment!",
+                    context="VoronCI/run",
+                ),
+            )
+        else:
+            GithubActionHelper.set_commit_status(
+                repo=self.github_repository,
+                commit_sha=commit_sha,
+                status=StatusCheck(
+                    status="success",
+                    description="No issues found by CI!",
+                    context="VoronCI/run",
+                ),
+            )
 
     def _post_process_pr(self: Self, pr_number: int, pr_action: str, commit_sha: str) -> None:
         logger.info("Post Processing PR #{}, action: {}", pr_number, pr_action)

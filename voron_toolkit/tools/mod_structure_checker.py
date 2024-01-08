@@ -21,6 +21,7 @@ class FileErrors(StrEnum):
     file_from_metadata_missing = "The file is listed in the metadata.yml file but does not exist"
     file_outside_mod_folder = "The file is located outside the expected folder structure of `printer_mods/user/mod`"
     mod_has_no_cad_files = "The mod does not have any CAD files listed in the metadata.yml file"
+    mod_has_no_stl_files = "The mod does not have any STL/OBJ files listed in the metadata.yml file"
     mod_missing_metadata = "The mod does not have a metadata.yml file"
     mod_has_invalid_metadata_file = "The metadata file of mod is invalid!"
 
@@ -36,79 +37,100 @@ class ModStructureChecker:
         self.gh_helper: GithubActionHelper = GithubActionHelper()
         self.ignore_warnings = args.ignore_warnings
         self.return_status: ExtendedResultEnum = ExtendedResultEnum.SUCCESS
+        self.all_results: list[ExtendedResultEnum] = []
         self.result_items: defaultdict[ExtendedResultEnum, list[ItemResult]] = defaultdict(list)
 
         init_logging(verbose=args.verbose)
 
+    def _check_single_mod(self: Self, mod_folder: Path, metadata: dict[str, Any]) -> ExtendedResultEnum:
+        mod_result: ExtendedResultEnum = ExtendedResultEnum.SUCCESS
+        mod_folder_relative: str = mod_folder.relative_to(self.input_dir).as_posix()
+        if "cad" in metadata and not metadata["cad"]:
+            logger.error("Mod '{}' has no CAD files!", mod_folder)
+            self.result_items[ExtendedResultEnum.FAILURE].append(
+                ItemResult(
+                    item=mod_folder_relative,
+                    extra_info=[FileErrors.mod_has_no_cad_files.value],
+                )
+            )
+            mod_result = ExtendedResultEnum.FAILURE
+
+        if "stl" in metadata and not metadata["stl"]:
+            logger.error("Mod '{}' has no STL/OBJ files!", mod_folder)
+            self.result_items[ExtendedResultEnum.FAILURE].append(
+                ItemResult(
+                    item=mod_folder_relative,
+                    extra_info=[FileErrors.mod_has_no_stl_files.value],
+                )
+            )
+            mod_result = ExtendedResultEnum.FAILURE
+
+        for subelement in ["cad", "images", "stl"]:
+            metadata_files = metadata[subelement]
+            if not (isinstance(metadata_files, list) and len(metadata_files) > 0):
+                continue
+            for metadata_file in metadata_files:
+                if not Path(mod_folder, metadata_file).exists():
+                    logger.error("File '{}' is missing in mod folder '{}'!", metadata_file, mod_folder_relative)
+                    self.result_items[ExtendedResultEnum.FAILURE].append(
+                        ItemResult(
+                            item=f"{mod_folder_relative}/{metadata_file}",
+                            extra_info=[FileErrors.file_from_metadata_missing.value],
+                        )
+                    )
+                    mod_result = ExtendedResultEnum.FAILURE
+        if mod_result == ExtendedResultEnum.SUCCESS:
+            logger.success("Mod '{}' OK!", mod_folder_relative)
+        return mod_result
+
+    def _validate_metadata_file(self: Self, schema: dict[str, Any], mod_folder: Path) -> dict[str, Any]:
+        mod_folder_relative: str = mod_folder.relative_to(self.input_dir).as_posix()
+        if not Path(mod_folder, ".metadata.yml").exists():
+            logger.error("Mod '{}' is missing a metadata file!", mod_folder_relative)
+            self.result_items[ExtendedResultEnum.FAILURE].append(
+                ItemResult(
+                    item=mod_folder_relative,
+                    extra_info=[FileErrors.mod_missing_metadata.value],
+                )
+            )
+            self.all_results.append(ExtendedResultEnum.FAILURE)
+            return {}
+
+        try:
+            metadata: dict[str, Any] = yaml.safe_load(Path(mod_folder, ".metadata.yml").read_text())
+            jsonschema.validate(instance=metadata, schema=schema)
+        except (yaml.YAMLError, yaml.scanner.ScannerError) as e:
+            logger.error("YAML error in metadata file of mod '{}': {}", mod_folder, e)
+            self.result_items[ExtendedResultEnum.FAILURE].append(
+                ItemResult(
+                    item=Path(mod_folder, ".metadata.yml").relative_to(self.input_dir).as_posix(),
+                    extra_info=[FileErrors.mod_has_invalid_metadata_file.value],
+                )
+            )
+            self.all_results.append(ExtendedResultEnum.FAILURE)
+            return {}
+        except jsonschema.ValidationError as e:
+            logger.error("Validation error in metadata file of mod '{}': {}", mod_folder, e.message)
+            self.result_items[ExtendedResultEnum.FAILURE].append(
+                ItemResult(
+                    item=Path(mod_folder, ".metadata.yml").relative_to(self.input_dir).as_posix(),
+                    extra_info=[FileErrors.mod_has_invalid_metadata_file.value],
+                )
+            )
+            self.all_results.append(ExtendedResultEnum.FAILURE)
+            return {}
+        return metadata
+
     def _check_mods(self: Self) -> None:
         mod_folders = [folder for folder in self.input_dir.glob("*/*") if folder.is_dir()]
         logger.info("Performing mod structure and metadata check")
-        result: ExtendedResultEnum = ExtendedResultEnum.SUCCESS
         schema = json.loads(files(resources).joinpath("voronusers_metadata_schema.json").read_text())
         for mod_folder in mod_folders:
-            mod_folder_relative: str = mod_folder.relative_to(self.input_dir).as_posix()
-            if not Path(mod_folder, ".metadata.yml").exists():
-                logger.error("Mod '{}' is missing a metadata file!", mod_folder_relative)
-                self.result_items[ExtendedResultEnum.FAILURE].append(
-                    ItemResult(
-                        item=mod_folder_relative,
-                        extra_info=[FileErrors.mod_missing_metadata.value],
-                    )
-                )
-                result = ExtendedResultEnum.FAILURE
+            metadata: dict[str, Any] = self._validate_metadata_file(schema=schema, mod_folder=mod_folder)
+            if not metadata:
                 continue
-
-            try:
-                metadata: dict[str, Any] = yaml.safe_load(Path(mod_folder, ".metadata.yml").read_text())
-                jsonschema.validate(instance=metadata, schema=schema)
-            except (yaml.YAMLError, yaml.scanner.ScannerError) as e:
-                logger.error("YAML error in metadata file of mod '{}': {}", mod_folder, e)
-                self.result_items[ExtendedResultEnum.FAILURE].append(
-                    ItemResult(
-                        item=Path(mod_folder, ".metadata.yml").relative_to(self.input_dir).as_posix(),
-                        extra_info=[FileErrors.mod_has_invalid_metadata_file.value],
-                    )
-                )
-                result = ExtendedResultEnum.FAILURE
-                continue
-            except jsonschema.ValidationError as e:
-                logger.error("Validation error in metadata file of mod '{}': {}", mod_folder, e.message)
-                self.result_items[ExtendedResultEnum.FAILURE].append(
-                    ItemResult(
-                        item=Path(mod_folder, ".metadata.yml").relative_to(self.input_dir).as_posix(),
-                        extra_info=[FileErrors.mod_has_invalid_metadata_file.value],
-                    )
-                )
-                result = ExtendedResultEnum.FAILURE
-                continue
-
-            if "cad" in metadata and not metadata["cad"]:
-                logger.error("Mod '{}' has no CAD files!", mod_folder)
-                self.result_items[ExtendedResultEnum.FAILURE].append(
-                    ItemResult(
-                        item=mod_folder_relative,
-                        extra_info=[FileErrors.mod_has_no_cad_files.value],
-                    )
-                )
-                result = ExtendedResultEnum.FAILURE
-
-            for subelement in ["cad", "images"]:
-                metadata_files = metadata[subelement]
-                if not (isinstance(metadata_files, list) and len(metadata_files) > 0):
-                    continue
-                for metadata_file in metadata_files:
-                    if not Path(mod_folder, metadata_file).exists():
-                        logger.error("File '{}' is missing in mod folder '{}'!", metadata_file, mod_folder_relative)
-                        self.result_items[ExtendedResultEnum.FAILURE].append(
-                            ItemResult(
-                                item=f"{mod_folder_relative}/{metadata_file}",
-                                extra_info=[FileErrors.file_from_metadata_missing.value],
-                            )
-                        )
-                        result = ExtendedResultEnum.FAILURE
-            self.result_items[ExtendedResultEnum.SUCCESS].append(ItemResult(item=mod_folder_relative, extra_info=[""]))
-            logger.success("Folder '{}' OK!", mod_folder_relative)
-        self.return_status = result
+            self.all_results.append(self._check_single_mod(mod_folder=mod_folder, metadata=metadata))
+        self.return_status = max(ExtendedResultEnum.SUCCESS, *self.all_results)
 
     def _check_shallow_files(self: Self) -> None:
         logger.info("Performing shallow file check")
