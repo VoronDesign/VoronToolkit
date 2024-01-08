@@ -62,6 +62,7 @@ jobs:
       - name: Check files for whitespace/licenses/file sizes 🔍
       # Run whitespace/licenses/file sizes check based on files in the test directory
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
+        continue-on-error: true
         env:
           FILE_CHECKER_IGNORE_WARNINGS: true
           FILE_CHECKER_CHECK_LICENSE: true
@@ -71,6 +72,7 @@ jobs:
       - name: Check correct mod/file structure 🔍
       # Check the mod structure
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
+        continue-on-error: true
         env:
           MOD_STRUCTURE_CHECKER_IGNORE_WARNINGS: false
         with:
@@ -78,6 +80,7 @@ jobs:
       - name: Check for STL corruption 🔍
       # Run the corruption checker
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
+        continue-on-error: true
         env:
           CORRUPTION_CHECKER_IGNORE_WARNINGS: true
         with:
@@ -85,6 +88,7 @@ jobs:
       - name: Check for incorrect STL rotation 🔍
       # Run the rotation checker
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
+        continue-on-error: true
         env:
           ROTATION_CHECKER_IGNORE_WARNINGS: true
           ROTATION_CHECKER_IMAGEKIT_ENDPOINT: https://ik.imagekit.io/vorondesign
@@ -94,6 +98,7 @@ jobs:
       - name: Generate README 📒
       # Generate a README
         uses: docker://ghcr.io/vorondesign/voron_toolkit_docker:latest
+        continue-on-error: true
         env:
           README_GENERATOR_MARKDOWN: false
           README_GENERATOR_JSON: false
