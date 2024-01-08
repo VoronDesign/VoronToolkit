@@ -13,6 +13,7 @@ jobs:
     permissions:
       pull-requests: write
       checks: write
+      statuses: write
     runs-on: ubuntu-latest
     steps:
     - name: Create PR comment 💬
