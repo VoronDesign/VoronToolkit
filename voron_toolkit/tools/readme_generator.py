@@ -49,7 +49,7 @@ class ReadmeGenerator:
                 metadata: dict[str, Any] = yaml.safe_load(yml_file.read_text())
                 jsonschema.validate(instance=metadata, schema=schema)
             except (yaml.YAMLError, yaml.scanner.ScannerError) as e:
-                logger.error("YAML error in metadata file of mod '{}': {}", mod_path, e)
+                logger.error("YAML parsing error in metadata file of mod '{}': {}", mod_path, e)
                 result = ExtendedResultEnum.FAILURE
                 self.result_items[ExtendedResultEnum.FAILURE].append(
                     ItemResult(
@@ -73,7 +73,7 @@ class ReadmeGenerator:
                 self.result_items[ExtendedResultEnum.FAILURE].append(
                     ItemResult(
                         item=mod_path,
-                        extra_info=["Error validating yaml file", ""],
+                        extra_info=["Error validating yaml file", e.message],
                     )
                 )
                 mods.append(
@@ -145,7 +145,7 @@ class ReadmeGenerator:
                 extended_result=result,
                 tool_ignore_warnings=False,
                 tool_result_items=ToolSummaryTable(
-                    extra_columns=["Description/Error", "Printer compatibility"],
+                    extra_columns=["Description/Error", "Printer compatibility/Error Detail"],
                     items=self.result_items,
                 ),
             )

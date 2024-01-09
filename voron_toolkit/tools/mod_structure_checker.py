@@ -114,7 +114,7 @@ class ModStructureChecker:
             self.result_items[ExtendedResultEnum.FAILURE].append(
                 ItemResult(
                     item=Path(mod_folder, ".metadata.yml").relative_to(self.input_dir).as_posix(),
-                    extra_info=[FileErrors.mod_has_invalid_metadata_file.value],
+                    extra_info=[e.message],
                 )
             )
             self.all_results.append(ExtendedResultEnum.FAILURE)
