@@ -4,7 +4,7 @@
 
 # Voron 2.4 SKR 1.3/1.4 mount for DIN rail
 
-G'day, another nice thingy from down under. Got non-standard electronics compartment? Some blocks there that don't allow spec placements? Don't have or don't like self-tapping screws? Or are you just up to better wiring and sturdier construction? Alright, Dropbears to resque. Here comes a rigid bracket for SKR boards, that uses M3 bolts and nuts, and allows mounting along and across the rail. Each bracket needs 2 of [rs25_psu_bracket_clip.stl](https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/VORON2.4/Electronics_Compartment/DIN_Brackets/rs25_psu_bracket_clip.stl).
+G'day, another nice thingy from down under. Got non-standard electronics compartment? Some blocks there that don't allow spec placements? Don't have or don't like self-tapping screws? Or are you just up to better wiring and sturdier construction? Alright, Dropbears to resque. Here comes a rigid bracket for SKR boards, that uses M3 bolts and nuts, and allows mounting along and across the rail. Each bracket needs 2 of [rs25_psu_bracket_clip.stl](https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/Electronics_Bay/rs25_psu_bracket.stl).
 
 ## Printing and plasic
 

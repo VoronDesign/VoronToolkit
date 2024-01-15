@@ -4,7 +4,7 @@
 
 # Voron 2.4 MeanWell UHP PSU mount for DIN rail
 
-G'day, another nice thingy from down under. MeanWell UHP PSUs are great: nice, slim, compact, mains and DC on opposite sides... Well, but how to mount them on DIN rais? Alright, Dropbears to resque. Pick an adapter for your UHP (they have different width), print 2 of them and 4 of [rs25_psu_bracket_clip.stl](https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/VORON2.4/Electronics_Compartment/DIN_Brackets/rs25_psu_bracket_clip.stl).
+G'day, another nice thingy from down under. MeanWell UHP PSUs are great: nice, slim, compact, mains and DC on opposite sides... Well, but how to mount them on DIN rais? Alright, Dropbears to resque. Pick an adapter for your UHP (they have different width), print 2 of them and 4 of [rs25_psu_bracket_clip.stl](https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/Electronics_Bay/rs25_psu_bracket.stl).
 
 ## Printing and plasic
 

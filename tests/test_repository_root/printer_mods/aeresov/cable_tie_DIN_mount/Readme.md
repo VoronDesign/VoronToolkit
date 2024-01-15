@@ -4,7 +4,7 @@
 
 # Voron 2.4 cable tie mount for DIN rail
 
-G'day, another nice thingy from down under: a simple bracket that allows fixing your cables with standard 3.5mm plastic cable ties in various positions. 4 ties per bracket, 2x2 criss-cross, so you can make bends or straights. The bracket needs 1 of [rs25_psu_bracket_clip.stl](https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/VORON2.4/Electronics_Compartment/DIN_Brackets/rs25_psu_bracket_clip.stl).
+G'day, another nice thingy from down under: a simple bracket that allows fixing your cables with standard 3.5mm plastic cable ties in various positions. 4 ties per bracket, 2x2 criss-cross, so you can make bends or straights. The bracket needs 1 of [rs25_psu_bracket_clip.stl](https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/Electronics_Bay/rs25_psu_bracket.stl).
 
 ## Printing and plasic
 

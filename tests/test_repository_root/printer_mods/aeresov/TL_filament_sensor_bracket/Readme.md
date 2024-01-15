@@ -4,7 +4,7 @@
 
 # Voron 2.4 Trianglelab filament sensor bracket
 
-G'day, another nice thingy from down under. Got TL filament sensor in your pile of parts? Bought it a year ago for 2.1 and too lazy to find a way to mount it so it plays well with spool holder? Upgraded to 2.4 and still have no clue? Alright, ask a mate to hold your beer, this is quick one: just print it and use instead of stock [bowen_retainer.stl](https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/VORON2.4/Spool_Management/bowen_retainer.stl).
+G'day, another nice thingy from down under. Got TL filament sensor in your pile of parts? Bought it a year ago for 2.1 and too lazy to find a way to mount it so it plays well with spool holder? Upgraded to 2.4 and still have no clue? Alright, ask a mate to hold your beer, this is quick one: just print it and use instead of stock [bowen_retainer.stl](https://github.com/VoronDesign/Voron-2/blob/Voron2.4/STLs/Spool_Management/bowden_retainer.stl).
 
 ## Printing and plasic
 
