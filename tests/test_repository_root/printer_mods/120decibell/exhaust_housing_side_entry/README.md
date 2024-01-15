@@ -7,3 +7,10 @@ Will also work on a V2.4 but the entire assembly must be replaced.
 ![](./images/side_housing_view1.png)
 
 ![](./images/side_housing_view2.png)
+
+
+[Test link](http://google.com)
+
+[test file](./CAD/exhaust_housing_side_entry.f3d)
+
+[test outside link](../huvud_chain_mount/)

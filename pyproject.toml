@@ -19,6 +19,7 @@ loguru = "^0.7.2"
 pyyaml = "^6.0.1"
 requests = "^2.31.0"
 tweaker3 = {git = "https://github.com/ChristophSchranz/Tweaker-3.git"}
+markdown-it-py = "^3.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -75,3 +76,4 @@ prepare-sparse-checkout = "voron_toolkit.voronuser_utils.sparse_checkout_helper:
 set-pr-comment-labels = "voron_toolkit.voronuser_utils.pr_helper:main"
 upload-images = "voron_toolkit.utils.imagekit_uploader:main"
 sanitize-file-list = "voron_toolkit.utils.file_helper:FileHelper.sanitize_file_list"
+check-markdown-files = "voron_toolkit.tools.markdown_link_checker:main"

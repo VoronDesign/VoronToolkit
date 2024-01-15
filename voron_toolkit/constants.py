@@ -132,6 +132,7 @@ class ToolIdentifierEnum(ToolIdentifier, Enum):
     README_GENERATOR = ToolIdentifier(tool_id="readme_generator", tool_name="Readme generator")
     ROTATION_CHECK = ToolIdentifier(tool_id="rotation_check", tool_name="STL rotation checker")
     FILE_CHECK = ToolIdentifier(tool_id="file_check", tool_name="File checker")
+    MARKDOWN_LINK_CHECK = ToolIdentifier(tool_id="markdown_link_check", tool_name="Markdown link checker")
 
 
 class StatusCheck(NamedTuple):
