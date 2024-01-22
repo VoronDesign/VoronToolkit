@@ -57,20 +57,19 @@ class MarkdownLinkChecker:
                 response = requests.head(link, timeout=5)
                 response.raise_for_status()
             except HTTPError as e:
-                logger.error("Link '{}' is invalid: {}, {}", link, e.response.status_code, e.response.reason)
-                self.result_items[ExtendedResultEnum.FAILURE].append(ItemResult(item=markdown_file_relative, extra_info=[f"Link '{link}' is invalid: {e}"]))
-                return ExtendedResultEnum.FAILURE
+                logger.warning("Link '{}' is invalid: {}, {}. Please verify it manually", link, e.response.status_code, e.response.reason)
+                self.result_items[ExtendedResultEnum.WARNING].append(ItemResult(item=markdown_file_relative, extra_info=[f"Link '{link}' returned {e}"]))
+                return ExtendedResultEnum.WARNING
             self.result_items[ExtendedResultEnum.SUCCESS].append(ItemResult(item=markdown_file_relative, extra_info=[f"Link '{link}' is valid!"]))
             return ExtendedResultEnum.SUCCESS
 
         # The link is a relative path, check if the file exists
-        if Path(markdown_file_folder_absolute, link).exists():
-            self.result_items[ExtendedResultEnum.SUCCESS].append(ItemResult(item=markdown_file_relative, extra_info=[f"Relative link '{link}' is valid!"]))
-            return ExtendedResultEnum.SUCCESS
-
-        self.result_items[ExtendedResultEnum.FAILURE].append(ItemResult(item=markdown_file_relative, extra_info=[f"Relative link '{link}' is invalid!"]))
-        logger.error("Relative link '{}' is invalid!", Path(markdown_file_folder_absolute, link))
-        return ExtendedResultEnum.FAILURE
+        if not Path(markdown_file_folder_absolute, link).exists():
+            self.result_items[ExtendedResultEnum.FAILURE].append(ItemResult(item=markdown_file_relative, extra_info=[f"Relative link '{link}' is invalid!"]))
+            logger.error("Relative link '{}' is invalid!", Path(markdown_file_folder_absolute, link))
+            return ExtendedResultEnum.FAILURE
+        self.result_items[ExtendedResultEnum.SUCCESS].append(ItemResult(item=markdown_file_relative, extra_info=[f"Relative link '{link}' is valid!"]))
+        return ExtendedResultEnum.SUCCESS
 
     def _check_markdown(self: Self, markdown_file: Path) -> ExtendedResultEnum:
         markdown_content: str = markdown_file.read_text()
