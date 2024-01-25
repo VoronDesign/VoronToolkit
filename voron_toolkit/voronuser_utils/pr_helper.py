@@ -12,6 +12,7 @@ from voron_toolkit.constants import (
     LABEL_CI_ISSUES_FOUND,
     LABEL_CI_PASSED,
     LABEL_READY_FOR_CI,
+    LABEL_READY_TO_MERGE,
     LABELS_CI_ALL,
     ExtendedResultEnum,
     ItemResult,
@@ -200,26 +201,15 @@ class PrHelper:
                         context=f"VoronCI/{ci_step_result.tool_id}",
                     ),
                 )
-        if failed:
-            GithubActionHelper.set_commit_status(
-                repo=self.github_repository,
-                commit_sha=commit_sha,
-                status=StatusCheck(
-                    status="failure",
-                    description="Issues found, please check the PR comment!",
-                    context="VoronCI/run",
-                ),
-            )
-        else:
-            GithubActionHelper.set_commit_status(
-                repo=self.github_repository,
-                commit_sha=commit_sha,
-                status=StatusCheck(
-                    status="success",
-                    description="No issues found by CI!",
-                    context="VoronCI/run",
-                ),
-            )
+        GithubActionHelper.set_commit_status(
+            repo=self.github_repository,
+            commit_sha=commit_sha,
+            status=StatusCheck(
+                status="failure" if failed else "success",
+                description="Issues found, please check the PR comment!" if failed else "No issues found by CI!",
+                context="VoronCI/run",
+            ),
+        )
 
     def _post_process_pr(self: Self, pr_number: int, pr_action: str, commit_sha: str) -> None:
         logger.info("Post Processing PR #{}, action: {}", pr_number, pr_action)
@@ -286,10 +276,24 @@ class PrHelper:
                 return
 
             if LABEL_READY_FOR_CI in pr_labels and pr_action == PrAction.labeled:
+                # Ready for CI label added
                 self._post_process_pr(pr_number=pr_number, pr_action=pr_action, commit_sha=pr_commit_sha)
+            elif LABEL_READY_TO_MERGE in pr_labels and pr_action == PrAction.labeled:
+                # Label ready to merge added
+                GithubActionHelper.set_commit_status(
+                    repo=self.github_repository,
+                    commit_sha=pr_commit_sha,
+                    status=StatusCheck(
+                        status="success",
+                        description="Ready to merge!",
+                        context="VoronCI/run",
+                    ),
+                )
             elif pr_action != PrAction.labeled:
+                # Commits/opening/reopening of PRs, dismiss all labels
                 self._dismiss_labels(pr_number=pr_number, commit_sha=pr_commit_sha)
             else:
+                # All other cases, just set the CI to pending
                 logger.info("Skipping post processing of PR #{}!", pr_number)
                 GithubActionHelper.set_commit_status(
                     repo=self.github_repository,
